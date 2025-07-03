@@ -64,3 +64,12 @@ const commands = [
 ] as const
 
 export default commands as any
+
+export const commands = {
+    '/deal': async (ctx) => { /* OTC escrow creation */ },
+    '/status': async (ctx) => { /* check deal status */ },
+    '/dispute': async (ctx) => { /* open dispute */ },
+    '/release': async (ctx) => { /* release funds */ },
+    '/help': async (ctx) => { /* command list */ },
+}
+
