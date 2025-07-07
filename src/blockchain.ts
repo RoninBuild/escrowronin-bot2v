@@ -76,3 +76,10 @@ export function getStatusName(status: number): string {
   const names = ['CREATED', 'FUNDED', 'RELEASED', 'REFUNDED', 'DISPUTED', 'RESOLVED']
   return names[status] || 'UNKNOWN'
 }
+
+import { createPublicClient, http } from 'viem'
+import { base } from 'viem/chains'
+
+export const publicClient = createPublicClient({ chain: base, transport: http() })
+export const FACTORY = '0xc5A2751f45c03F487b33767cF9b9867907d0aEcE' as const
+
