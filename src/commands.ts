@@ -73,3 +73,12 @@ export const commands = {
     '/help': async (ctx) => { /* command list */ },
 }
 
+
+
+'/deal': async (ctx) => {
+    const [seller, amount] = ctx.args
+    if (!seller || !amount) return ctx.reply('Usage: /deal <seller> <amount>')
+    const tx = await createEscrow(seller, parseUnits(amount, 6))
+    return ctx.reply(`Escrow created: ${tx}`)
+},
+
