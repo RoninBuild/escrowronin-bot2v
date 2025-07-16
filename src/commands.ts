@@ -82,3 +82,11 @@ export const commands = {
     return ctx.reply(`Escrow created: ${tx}`)
 },
 
+
+
+import { isAddress } from 'viem'
+
+function validateAddress(addr: string): boolean {
+    return isAddress(addr) && addr.startsWith('0x')
+}
+
