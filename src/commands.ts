@@ -90,3 +90,11 @@ function validateAddress(addr: string): boolean {
     return isAddress(addr) && addr.startsWith('0x')
 }
 
+
+
+'/status': async (ctx) => {
+    const [id] = ctx.args
+    const deal = await getDealInfo(Number(id))
+    return ctx.reply(`Deal ${id}: ${deal.status}, ${deal.amount} USDC`)
+},
+
