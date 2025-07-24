@@ -138,3 +138,17 @@ export function getActiveDeals(): Deal[] {
 
 
 export default db
+
+import Database from 'better-sqlite3'
+
+const db = new Database('escrows.db')
+db.exec(`CREATE TABLE IF NOT EXISTS deals (
+    id INTEGER PRIMARY KEY,
+    escrow_addr TEXT,
+    buyer TEXT,
+    seller TEXT,
+    amount TEXT,
+    status TEXT,
+    created_at INTEGER
+)`)
+
