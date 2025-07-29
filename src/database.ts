@@ -152,3 +152,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS deals (
     created_at INTEGER
 )`)
 
+
+
+export function createDeal(escrowAddr: string, buyer: string, seller: string, amount: bigint) {
+    db.prepare('INSERT INTO deals (escrow_addr, buyer, seller, amount, status, created_at) VALUES (?,?,?,?,?,?)')
+        .run(escrowAddr, buyer, seller, amount.toString(), 'Pending', Date.now())
+}
+
