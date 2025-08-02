@@ -921,3 +921,14 @@ export default {
     port: config.port,
     fetch: app.fetch,
 }
+
+
+// Sync deal statuses every 30 seconds
+setInterval(async () => {
+    const deals = getActiveDeals()
+    for (const d of deals) {
+        const onchain = await getDealInfo(d.id)
+        if (onchain.status !== d.status) updateDealStatus(d.id, onchain.status)
+    }
+}, 30000)
+
