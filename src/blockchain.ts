@@ -83,3 +83,15 @@ import { base } from 'viem/chains'
 export const publicClient = createPublicClient({ chain: base, transport: http() })
 export const FACTORY = '0xc5A2751f45c03F487b33767cF9b9867907d0aEcE' as const
 
+
+
+export async function getDealInfo(id: number) {
+    try {
+        const addr = await publicClient.readContract({
+            address: FACTORY, abi: factoryAbi, functionName: 'getEscrowById', args: [BigInt(id)]
+        })
+        if (addr === '0x0000000000000000000000000000000000000000') throw new Error('Not found')
+        return { addr, ...await readEscrow(addr) }
+    } catch { return null }
+}
+
