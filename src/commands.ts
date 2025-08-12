@@ -98,3 +98,12 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Deal ${id}: ${deal.status}, ${deal.amount} USDC`)
 },
 
+
+
+'/dispute': async (ctx) => {
+    const [id] = ctx.args
+    const { writeContract } = await getSmartAccount(ctx.userId)
+    const tx = await writeContract({ address: deal.addr, abi: escrowAbi, functionName: 'openDispute' })
+    return ctx.reply(`Dispute opened: ${tx}`)
+},
+
