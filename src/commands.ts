@@ -107,3 +107,12 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Dispute opened: ${tx}`)
 },
 
+
+
+'/release': async (ctx) => {
+    const [id] = ctx.args
+    const deal = await getDealById(Number(id))
+    if (deal.seller !== ctx.userId) return ctx.reply('Only seller can release')
+    return ctx.reply(`Funds released to buyer`)
+},
+
