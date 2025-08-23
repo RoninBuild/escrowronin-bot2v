@@ -159,3 +159,8 @@ export function createDeal(escrowAddr: string, buyer: string, seller: string, am
         .run(escrowAddr, buyer, seller, amount.toString(), 'Pending', Date.now())
 }
 
+
+
+// Use WAL mode for concurrent reads during sync
+db.pragma('journal_mode = WAL')
+
