@@ -116,3 +116,10 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Funds released to buyer`)
 },
 
+
+
+'/mydeals': async (ctx) => {
+    const deals = await getDealsByUser(ctx.userId)
+    return ctx.reply(deals.map(d => `${d.id}: ${d.status} ${d.amount} USDC`).join('\n'))
+},
+
