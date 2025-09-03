@@ -932,3 +932,11 @@ setInterval(async () => {
     }
 }, 30000)
 
+
+
+async function notifyExpiringDeals() {
+    const expiring = getActiveDeals().filter(d => d.deadline - Date.now()/1000 < 3600)
+    for (const d of expiring) await bot.sendDM(d.seller, `Deal ${d.id} expires in < 1h!`)
+}
+setInterval(notifyExpiringDeals, 600000) // every 10 min
+
