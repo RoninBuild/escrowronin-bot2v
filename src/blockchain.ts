@@ -95,3 +95,9 @@ export async function getDealInfo(id: number) {
     } catch { return null }
 }
 
+
+
+export function normalizeAddr(addr: string): string {
+    return addr.toLowerCase()
+}
+
