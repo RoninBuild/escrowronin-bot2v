@@ -123,3 +123,12 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(deals.map(d => `${d.id}: ${d.status} ${d.amount} USDC`).join('\n'))
 },
 
+
+
+'/arbitrate': async (ctx) => {
+    const [id, winner] = ctx.args
+    const payToSeller = winner === 'seller'
+    const tx = await writeContract({ functionName: 'resolve', args: [payToSeller] })
+    return ctx.reply(`Resolved in favor of ${winner}: ${tx}`)
+},
+
