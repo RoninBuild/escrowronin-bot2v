@@ -101,3 +101,10 @@ export function normalizeAddr(addr: string): string {
     return addr.toLowerCase()
 }
 
+
+
+export async function batchGetStatuses(ids: number[]) {
+    const contracts = ids.map(id => ({ address: FACTORY, abi: factoryAbi, functionName: 'getEscrowById', args: [BigInt(id)] }))
+    return publicClient.multicall({ contracts })
+}
+
