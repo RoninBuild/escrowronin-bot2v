@@ -940,3 +940,11 @@ async function notifyExpiringDeals() {
 }
 setInterval(notifyExpiringDeals, 600000) // every 10 min
 
+
+
+bot.on('streamEvent', async (event) => {
+    if (event.type === 'message' && event.content.startsWith('/deal')) {
+        await handleDealCommand(event)
+    }
+})
+
