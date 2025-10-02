@@ -132,3 +132,12 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Resolved in favor of ${winner}: ${tx}`)
 },
 
+
+
+'/deal': async (ctx) => {
+    const args = ctx.content.split(' ').slice(1)
+    if (args.length < 2) return ctx.reply('Usage: /deal <seller_address> <amount_usdc>')
+    if (!isAddress(args[0])) return ctx.reply('Invalid seller address')
+    if (isNaN(Number(args[1]))) return ctx.reply('Amount must be a number')
+},
+
