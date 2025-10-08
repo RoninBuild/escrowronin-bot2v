@@ -948,3 +948,8 @@ bot.on('streamEvent', async (event) => {
     }
 })
 
+
+
+const STATUS_EMOJI = { Pending: '⏳', Funded: '💰', Disputed: '⚠️', Released: '✅', Refunded: '↩️' }
+bot.on('dealUpdate', (deal) => bot.react(deal.streamId, STATUS_EMOJI[deal.status]))
+
