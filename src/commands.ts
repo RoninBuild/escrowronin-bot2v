@@ -141,3 +141,11 @@ function validateAddress(addr: string): boolean {
     if (isNaN(Number(args[1]))) return ctx.reply('Amount must be a number')
 },
 
+
+
+'/stats': async (ctx) => {
+    const deals = getActiveDeals()
+    const volume = deals.reduce((s, d) => s + BigInt(d.amount), 0n)
+    return ctx.reply(`Total volume: ${Number(volume)/1e6} USDC | Active deals: ${deals.length}`)
+},
+
