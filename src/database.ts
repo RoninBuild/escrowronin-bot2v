@@ -164,3 +164,9 @@ export function createDeal(escrowAddr: string, buyer: string, seller: string, am
 // Use WAL mode for concurrent reads during sync
 db.pragma('journal_mode = WAL')
 
+
+
+export function findDealByEscrow(addr: string) {
+    return db.prepare('SELECT * FROM deals WHERE escrow_addr = ?').get(addr)
+}
+
