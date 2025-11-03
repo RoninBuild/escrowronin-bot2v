@@ -12,3 +12,10 @@ export const config = {
 } as const
 
 export default config
+
+export const config = {
+    rpcUrl: process.env.BASE_RPC || 'https://mainnet.base.org',
+    arbiterFeeBps: Number(process.env.ARBITER_FEE_BPS || 50),
+    minDealAmount: parseUnits(process.env.MIN_DEAL || '10', 6),
+}
+
