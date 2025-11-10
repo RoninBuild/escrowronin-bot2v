@@ -149,3 +149,14 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Total volume: ${Number(volume)/1e6} USDC | Active deals: ${deals.length}`)
 },
 
+
+
+'/cancel': async (ctx) => {
+    const [id] = ctx.args
+    const deal = await getDealById(Number(id))
+    if (deal.buyer !== ctx.userId) return ctx.reply('Only buyer can cancel')
+    if (deal.status !== 'Pending') return ctx.reply('Can only cancel pending deals')
+    const tx = await writeContract({ functionName: 'refundAfterDeadline', args: [] })
+    return ctx.reply(`Cancelled: ${tx}`)
+},
+
