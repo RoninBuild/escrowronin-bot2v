@@ -108,3 +108,9 @@ export async function batchGetStatuses(ids: number[]) {
     return publicClient.multicall({ contracts })
 }
 
+
+
+export function hashMemo(text: string): `0x${string}` {
+    return keccak256(toHex(text))
+}
+
