@@ -19,3 +19,12 @@ export const config = {
     minDealAmount: parseUnits(process.env.MIN_DEAL || '10', 6),
 }
 
+
+
+export const RPC_URLS = [
+    'https://mainnet.base.org',
+    'https://base.llamarpc.com',
+    'https://base.blockpi.network/v1/rpc/public',
+]
+export function getRpcUrl() { return RPC_URLS[Math.floor(Math.random() * RPC_URLS.length)] }
+
