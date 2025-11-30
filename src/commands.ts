@@ -160,3 +160,11 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Cancelled: ${tx}`)
 },
 
+
+
+'/export': async (ctx) => {
+    const deals = await getDealsByUser(ctx.userId)
+    const json = JSON.stringify(deals, null, 2)
+    return ctx.reply(`\`\`\`json\n${json}\n\`\`\``)
+},
+
