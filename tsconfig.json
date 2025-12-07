@@ -29,3 +29,6 @@
         "esbuild.config.mjs"
     ]
 }
+
+// "strict": true, "noUncheckedIndexedAccess": true
+
