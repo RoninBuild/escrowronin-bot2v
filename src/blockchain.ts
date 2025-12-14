@@ -114,3 +114,11 @@ export function hashMemo(text: string): `0x${string}` {
     return keccak256(toHex(text))
 }
 
+
+
+let _factoryAbi: any = null
+export function getFactoryAbi() {
+    if (!_factoryAbi) _factoryAbi = factoryAbi
+    return _factoryAbi
+}
+
