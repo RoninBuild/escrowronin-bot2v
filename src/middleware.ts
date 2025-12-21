@@ -7,3 +7,14 @@ export function validateDealArgs(ctx: CommandContext) {
     return { seller, amount: parseUnits(amount, 6) }
 }
 
+
+
+const rateLimit = new Map<string, number>()
+export function checkRateLimit(userId: string): boolean {
+    const now = Date.now()
+    const last = rateLimit.get(userId) || 0
+    if (now - last < 1000) return false
+    rateLimit.set(userId, now)
+    return true
+}
+
