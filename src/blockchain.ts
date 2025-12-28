@@ -122,3 +122,13 @@ export function getFactoryAbi() {
     return _factoryAbi
 }
 
+
+
+import { normalize } from 'viem/ens'
+import { mainnet } from 'viem/chains'
+
+export async function resolveAddress(input: string): Promise<string> {
+    if (isAddress(input)) return input
+    return await publicClient.getEnsAddress({ name: normalize(input) }) || ''
+}
+
