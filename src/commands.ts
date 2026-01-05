@@ -168,3 +168,10 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`\`\`\`json\n${json}\n\`\`\``)
 },
 
+
+
+'/leaderboard': async (ctx) => {
+    const stats = db.prepare('SELECT buyer, SUM(amount) as vol FROM deals WHERE status="Released" GROUP BY buyer ORDER BY vol DESC LIMIT 10').all()
+    return ctx.reply(stats.map((s, i) => `${i+1}. ${s.buyer.slice(0,6)}: ${Number(s.vol)/1e6} USDC`).join('\n'))
+},
+
