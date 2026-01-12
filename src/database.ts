@@ -170,3 +170,10 @@ export function findDealByEscrow(addr: string) {
     return db.prepare('SELECT * FROM deals WHERE escrow_addr = ?').get(addr)
 }
 
+
+
+export function safeBigInt(val: string): bigint {
+    try { return BigInt(val) }
+    catch { return 0n }
+}
+
