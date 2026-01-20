@@ -953,3 +953,13 @@ bot.on('streamEvent', async (event) => {
 const STATUS_EMOJI = { Pending: '⏳', Funded: '💰', Disputed: '⚠️', Released: '✅', Refunded: '↩️' }
 bot.on('dealUpdate', (deal) => bot.react(deal.streamId, STATUS_EMOJI[deal.status]))
 
+
+
+import { Hono } from 'hono'
+const app = new Hono()
+app.post('/webhook', async (c) => {
+    const body = await c.req.json()
+    await updateDealStatus(body.id, body.status)
+    return c.json({ ok: true })
+})
+
