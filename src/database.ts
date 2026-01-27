@@ -177,3 +177,12 @@ export function safeBigInt(val: string): bigint {
     catch { return 0n }
 }
 
+
+
+export class DealRepository {
+    constructor(private db: Database) {}
+    findById(id: number) { return this.db.prepare('SELECT * FROM deals WHERE id=?').get(id) }
+    findByUser(user: string) { return this.db.prepare('SELECT * FROM deals WHERE buyer=? OR seller=?').all(user, user) }
+    create(deal: Omit<Deal, 'id'>) { /* ... */ }
+}
+
