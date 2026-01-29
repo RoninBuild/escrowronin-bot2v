@@ -1,0 +1,55 @@
+import { createPublicClient, http } from 'viem'
+import { base } from 'viem/chains'
+import { config } from './config'
+import factoryAbi from './abi/EscrowFactory.json'
+import escrowAbi from './abi/Escrow.json'
+
+export const publicClient = createPublicClient({
+  chain: base,
+  transport: http(config.rpcUrl),
+})
+
+export { factoryAbi, escrowAbi }
+
+export async function getEscrowCount() {
+  const count = await publicClient.readContract({
+    address: config.factoryAddress,
+    abi: factoryAbi,
+    functionName: 'getEscrowCount',
+  })
+  return count
+}
+
+export async function getDealInfo(escrowAddress: `0x${string}`) {
+  const info = await publicClient.readContract({
+    address: escrowAddress,
+    abi: escrowAbi,
+    functionName: 'getDealInfo',
+  })
+
+  return {
+    buyer: info[0],
+    seller: info[1],
+    token: info[2],
+    amount: info[3],
+    deadline: info[4],
+    arbiter: info[5],
+    memoHash: info[6],
+    status: info[7],
+    fundedAt: info[8],
+  }
+}
+
+export enum EscrowStatus {
+  CREATED = 0,
+  FUNDED = 1,
+  RELEASED = 2,
+  REFUNDED = 3,
+  DISPUTED = 4,
+  RESOLVED = 5,
+}
+
+export function getStatusName(status: number): string {
+  const names = ['CREATED', 'FUNDED', 'RELEASED', 'REFUNDED', 'DISPUTED', 'RESOLVED']
+  return names[status] || 'UNKNOWN'
+}

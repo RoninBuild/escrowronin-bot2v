@@ -1,0 +1,69 @@
+import type { BotCommand } from '@towns-protocol/bot'
+
+const commands = [
+    {
+        name: 'help',
+        description: 'Get help with bot commands',
+    },
+    {
+        name: 'time',
+        description: 'Get the current time',
+    },
+    {
+        name: 'escrow',
+        description: 'Manage escrow deals',
+        options: [
+            {
+                name: 'create',
+                description: 'Create a new escrow deal',
+                type: 1,
+                options: [
+                    {
+                        name: 'seller',
+                        description: 'Seller wallet address',
+                        type: 3,
+                        required: true,
+                    },
+                    {
+                        name: 'amount',
+                        description: 'Amount in USDC',
+                        type: 10,
+                        required: true,
+                    },
+                    {
+                        name: 'description',
+                        description: 'What is being sold',
+                        type: 3,
+                        required: true,
+                    },
+                    {
+                        name: 'hours',
+                        description: 'Deadline in hours (default: 48)',
+                        type: 10,
+                        required: false,
+                    },
+                ],
+            },
+            {
+                name: 'info',
+                description: 'Get deal information',
+                type: 1,
+                options: [
+                    {
+                        name: 'address',
+                        description: 'Escrow contract address',
+                        type: 3,
+                        required: true,
+                    },
+                ],
+            },
+            {
+                name: 'stats',
+                description: 'Get escrow statistics',
+                type: 1,
+            },
+        ],
+    },
+] as const satisfies BotCommand[]
+
+export default commands
