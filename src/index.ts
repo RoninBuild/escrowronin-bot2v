@@ -9,86 +9,6 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     commands,
 })
 
-// ===== API ENDPOINTS FOR MINI-APP =====
-
-// GET /api/deal/:dealId - Get deal by ID
-bot.hono.get('/api/deal/:dealId', (c) => {
-    try {
-        const dealId = c.req.param('dealId')
-        const deal = getDealById(dealId)
-
-        if (!deal) {
-            return c.json({ error: 'Deal not found' }, 404)
-        }
-
-        return c.json({
-            success: true,
-            deal
-        })
-    } catch (error) {
-        console.error('API error:', error)
-        return c.json({
-            error: error instanceof Error ? error.message : 'Unknown error'
-        }, 500)
-    }
-})
-
-// GET /api/deals/user/:address - Get user's deals
-bot.hono.get('/api/deals/user/:address', (c) => {
-    try {
-        const address = c.req.param('address')
-        const role = c.req.query('role') as 'buyer' | 'seller' || 'buyer'
-
-        const deals = getDealsByUser(address, role)
-
-        return c.json({
-            success: true,
-            deals,
-            count: deals.length
-        })
-    } catch (error) {
-        console.error('API error:', error)
-        return c.json({
-            error: error instanceof Error ? error.message : 'Unknown error'
-        }, 500)
-    }
-})
-
-// POST /api/deal/:dealId/status - Update deal status (for mini-app)
-bot.hono.post('/api/deal/:dealId/status', async (c) => {
-    try {
-        const dealId = c.req.param('dealId')
-        const body = await c.req.json()
-        const { status, escrowAddress } = body
-
-        if (!status) {
-            return c.json({ error: 'Status is required' }, 400)
-        }
-
-        updateDealStatus(dealId, status, escrowAddress)
-        const updatedDeal = getDealById(dealId)
-
-        return c.json({
-            success: true,
-            deal: updatedDeal
-        })
-    } catch (error) {
-        console.error('API error:', error)
-        return c.json({
-            error: error instanceof Error ? error.message : 'Unknown error'
-        }, 500)
-    }
-})
-
-// GET /api/health - Health check
-bot.hono.get('/api/health', (c) => {
-    return c.json({
-        status: 'ok',
-        timestamp: Date.now(),
-        service: 'RoninOTC API'
-    })
-})
-
 // ===== BOT COMMANDS =====
 
 // Help command
@@ -126,21 +46,13 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
     const { channelId, message, mentions, userId, spaceId } = context
 
     try {
-        // Parse command: /escrow_create @buyer description amount
-        // Example: /escrow_create @alice "Logo design" 100
-
         if (!mentions || mentions.length === 0) {
             await handler.sendMessage(channelId, '❌ Please mention the buyer:\n\n`/escrow_create @buyer "description" amount`\n\n**Example:**\n`/escrow_create @alice "Logo design" 100`')
             return
         }
 
-        const buyerAddress = mentions[0] // First mention is buyer
-
-        // Parse message to extract description and amount
-        // Remove command and mention, split by quotes
+        const buyerAddress = mentions[0]
         const parts = message.replace('/escrow_create', '').trim()
-
-        // Extract description (in quotes) and amount
         const descMatch = parts.match(/"([^"]+)"/)
         const amountMatch = parts.match(/(\d+(?:\.\d+)?)\s*(?:USDC)?$/i)
 
@@ -160,16 +72,12 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        // Generate unique deal ID
         const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-        // Calculate deadline (48 hours default)
         const deadline = Math.floor(Date.now() / 1000) + (48 * 3600)
 
-        // Create deal in database
         const deal = createDeal({
             deal_id: dealId,
-            seller_address: userId, // Creator is seller
+            seller_address: userId,
             buyer_address: buyerAddress,
             amount: amount.toString(),
             token: 'USDC',
@@ -182,10 +90,8 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         console.log('✅ Deal created:', deal)
 
-        // Generate mini-app link
         const miniAppUrl = `https://roninotc.vercel.app/deal/${dealId}`
 
-        // Send deal card
         await handler.sendMessage(
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
@@ -312,7 +218,68 @@ bot.onReaction(async (handler, { reaction, channelId }) => {
 console.log(`🤝 RoninOTC bot started on port ${config.port}`)
 console.log(`🏭 Factory: ${config.factoryAddress}`)
 console.log(`🪙 USDC: ${config.usdcAddress}`)
-console.log(`📡 API ready at /api/*`)
 
 const app = bot.start()
+
+// ===== API ENDPOINTS (after bot.start) =====
+
+app.get('/api/deal/:dealId', (c) => {
+    try {
+        const dealId = c.req.param('dealId')
+        const deal = getDealById(dealId)
+
+        if (!deal) {
+            return c.json({ error: 'Deal not found' }, 404)
+        }
+
+        return c.json({ success: true, deal })
+    } catch (error) {
+        console.error('API error:', error)
+        return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    }
+})
+
+app.get('/api/deals/user/:address', (c) => {
+    try {
+        const address = c.req.param('address')
+        const role = c.req.query('role') as 'buyer' | 'seller' || 'buyer'
+        const deals = getDealsByUser(address, role)
+
+        return c.json({ success: true, deals, count: deals.length })
+    } catch (error) {
+        console.error('API error:', error)
+        return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    }
+})
+
+app.post('/api/deal/:dealId/status', async (c) => {
+    try {
+        const dealId = c.req.param('dealId')
+        const body = await c.req.json()
+        const { status, escrowAddress } = body
+
+        if (!status) {
+            return c.json({ error: 'Status is required' }, 400)
+        }
+
+        updateDealStatus(dealId, status, escrowAddress)
+        const updatedDeal = getDealById(dealId)
+
+        return c.json({ success: true, deal: updatedDeal })
+    } catch (error) {
+        console.error('API error:', error)
+        return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    }
+})
+
+app.get('/api/health', (c) => {
+    return c.json({
+        status: 'ok',
+        timestamp: Date.now(),
+        service: 'RoninOTC API'
+    })
+})
+
+console.log(`📡 API ready at /api/*`)
+
 export default app
