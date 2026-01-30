@@ -3,13 +3,95 @@ import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName } from './blockchain'
-import { createDeal, getDealById, updateDealStatus } from './database'
+import { createDeal, getDealById, updateDealStatus, getDealsByUser } from './database'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
 })
 
-// Help command (updated with escrow info)
+// ===== API ENDPOINTS FOR MINI-APP =====
+
+// GET /api/deal/:dealId - Get deal by ID
+bot.hono.get('/api/deal/:dealId', (c) => {
+    try {
+        const dealId = c.req.param('dealId')
+        const deal = getDealById(dealId)
+
+        if (!deal) {
+            return c.json({ error: 'Deal not found' }, 404)
+        }
+
+        return c.json({
+            success: true,
+            deal
+        })
+    } catch (error) {
+        console.error('API error:', error)
+        return c.json({
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }, 500)
+    }
+})
+
+// GET /api/deals/user/:address - Get user's deals
+bot.hono.get('/api/deals/user/:address', (c) => {
+    try {
+        const address = c.req.param('address')
+        const role = c.req.query('role') as 'buyer' | 'seller' || 'buyer'
+
+        const deals = getDealsByUser(address, role)
+
+        return c.json({
+            success: true,
+            deals,
+            count: deals.length
+        })
+    } catch (error) {
+        console.error('API error:', error)
+        return c.json({
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }, 500)
+    }
+})
+
+// POST /api/deal/:dealId/status - Update deal status (for mini-app)
+bot.hono.post('/api/deal/:dealId/status', async (c) => {
+    try {
+        const dealId = c.req.param('dealId')
+        const body = await c.req.json()
+        const { status, escrowAddress } = body
+
+        if (!status) {
+            return c.json({ error: 'Status is required' }, 400)
+        }
+
+        updateDealStatus(dealId, status, escrowAddress)
+        const updatedDeal = getDealById(dealId)
+
+        return c.json({
+            success: true,
+            deal: updatedDeal
+        })
+    } catch (error) {
+        console.error('API error:', error)
+        return c.json({
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }, 500)
+    }
+})
+
+// GET /api/health - Health check
+bot.hono.get('/api/health', (c) => {
+    return c.json({
+        status: 'ok',
+        timestamp: Date.now(),
+        service: 'RoninOTC API'
+    })
+})
+
+// ===== BOT COMMANDS =====
+
+// Help command
 bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
@@ -33,8 +115,6 @@ bot.onSlashCommand('time', async (handler, { channelId }) => {
     const currentTime = new Date().toLocaleString()
     await handler.sendMessage(channelId, `Current time: ${currentTime} ⏰`)
 })
-
-// ===== ESCROW COMMANDS =====
 
 // /escrow_create - WITH @MENTION PARSING
 bot.onSlashCommand('escrow_create', async (handler, context) => {
@@ -131,15 +211,11 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
 // /escrow_info
 bot.onSlashCommand('escrow_info', async (handler, context) => {
-    console.log('=== ESCROW_INFO called ===')
-    console.log('Context keys:', Object.keys(context))
-    console.log('Options:', context.options)
-
     const { channelId, options } = context
 
     try {
         if (!options || !options.address) {
-            await handler.sendMessage(channelId, `❌ No address provided. Available keys: ${Object.keys(context).join(', ')}`)
+            await handler.sendMessage(channelId, '❌ Please provide escrow address')
             return
         }
 
@@ -151,14 +227,8 @@ bot.onSlashCommand('escrow_info', async (handler, context) => {
         }
 
         const info = await getDealInfo(address as `0x${string}`)
-
-        // Format amount (USDC has 6 decimals)
         const amountUsdc = Number(info.amount) / 1_000_000
-
-        // Format deadline
         const deadlineDate = new Date(Number(info.deadline) * 1000)
-
-        // Status
         const status = getStatusName(info.status)
         const statusEmoji = {
             'CREATED': '⏳️',
@@ -192,9 +262,6 @@ bot.onSlashCommand('escrow_info', async (handler, context) => {
 
 // /escrow_stats
 bot.onSlashCommand('escrow_stats', async (handler, context) => {
-    console.log('=== ESCROW_STATS called ===')
-    console.log('Context keys:', Object.keys(context))
-
     const { channelId } = context
 
     try {
@@ -218,7 +285,7 @@ bot.onSlashCommand('escrow_stats', async (handler, context) => {
     }
 })
 
-// Original message handlers
+// Message handlers
 bot.onMessage(async (handler, { message, channelId, eventId, createdAt }) => {
     if (message.includes('hello')) {
         await handler.sendMessage(channelId, 'Hello there! 👋')
@@ -245,6 +312,7 @@ bot.onReaction(async (handler, { reaction, channelId }) => {
 console.log(`🤝 RoninOTC bot started on port ${config.port}`)
 console.log(`🏭 Factory: ${config.factoryAddress}`)
 console.log(`🪙 USDC: ${config.usdcAddress}`)
+console.log(`📡 API ready at /api/*`)
 
 const app = bot.start()
 export default app
