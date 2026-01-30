@@ -8,18 +8,15 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     commands,
 })
 
-// Metadata endpoint for bot discovery
-
-
 // Help command (updated with escrow info)
 bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
         '**EscrowRonin Bot - Available Commands:**\n\n' +
             '**Escrow Commands:**\n' +
-            '• `/escrow create` - Create new escrow deal\n' +
-            '• `/escrow info <address>` - Get deal details\n' +
-            '• `/escrow stats` - View statistics\n\n' +
+            '• `/escrow_create` - Create new escrow deal\n' +
+            '• `/escrow_info <address>` - Get deal details\n' +
+            '• `/escrow_stats` - View statistics\n\n' +
             '**Other Commands:**\n' +
             '• `/help` - Show this help message\n' +
             '• `/time` - Get the current time\n\n' +
@@ -42,8 +39,8 @@ bot.onSlashCommand('time', async (handler, { channelId }) => {
 
 // ===== ESCROW COMMANDS =====
 
-// /escrow create
-bot.onSlashCommand('escrow create', async (handler, { channelId, options }) => {
+// /escrow_create
+bot.onSlashCommand('escrow_create', async (handler, { channelId, options }) => {
     try {
         const seller = options.seller as string
         const amount = options.amount as number
@@ -110,8 +107,8 @@ bot.onSlashCommand('escrow create', async (handler, { channelId, options }) => {
     }
 })
 
-// /escrow info
-bot.onSlashCommand('escrow info', async (handler, { channelId, options }) => {
+// /escrow_info
+bot.onSlashCommand('escrow_info', async (handler, { channelId, options }) => {
     try {
         const address = options.address as string
 
@@ -160,8 +157,8 @@ bot.onSlashCommand('escrow info', async (handler, { channelId, options }) => {
     }
 })
 
-// /escrow stats
-bot.onSlashCommand('escrow stats', async (handler, { channelId }) => {
+// /escrow_stats
+bot.onSlashCommand('escrow_stats', async (handler, { channelId }) => {
     try {
         const count = await getEscrowCount()
 
