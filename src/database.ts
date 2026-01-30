@@ -1,9 +1,9 @@
-import Database from 'better-sqlite3'
+import { Database } from 'bun:sqlite'
 
 const db = new Database('roninotc.db')
 
 // Create deals table
-db.exec(`
+db.run(`
   CREATE TABLE IF NOT EXISTS deals (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     deal_id TEXT UNIQUE NOT NULL,
@@ -20,13 +20,13 @@ db.exec(`
     message_id TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_deal_id ON deals(deal_id);
-  CREATE INDEX IF NOT EXISTS idx_seller ON deals(seller_address);
-  CREATE INDEX IF NOT EXISTS idx_buyer ON deals(buyer_address);
-  CREATE INDEX IF NOT EXISTS idx_status ON deals(status);
+  )
 `)
+
+db.run(`CREATE INDEX IF NOT EXISTS idx_deal_id ON deals(deal_id)`)
+db.run(`CREATE INDEX IF NOT EXISTS idx_seller ON deals(seller_address)`)
+db.run(`CREATE INDEX IF NOT EXISTS idx_buyer ON deals(buyer_address)`)
+db.run(`CREATE INDEX IF NOT EXISTS idx_status ON deals(status)`)
 
 export interface Deal {
   id?: number
@@ -56,7 +56,7 @@ export function createDeal(deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>)
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
-  const result = stmt.run(
+  stmt.run(
     deal.deal_id,
     deal.seller_address,
     deal.buyer_address,
@@ -75,14 +75,14 @@ export function createDeal(deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>)
 
   return {
     ...deal,
-    id: result.lastInsertRowid as number,
+    id: db.query('SELECT last_insert_rowid() as id').get() as number,
     created_at: now,
     updated_at: now
   }
 }
 
 export function getDealById(dealId: string): Deal | null {
-  const stmt = db.prepare('SELECT * FROM deals WHERE deal_id = ?')
+  const stmt = db.query('SELECT * FROM deals WHERE deal_id = ?')
   return stmt.get(dealId) as Deal | null
 }
 
@@ -97,7 +97,7 @@ export function updateDealStatus(dealId: string, status: Deal['status'], escrowA
 
 export function getDealsByUser(userAddress: string, role: 'buyer' | 'seller'): Deal[] {
   const field = role === 'buyer' ? 'buyer_address' : 'seller_address'
-  const stmt = db.prepare(`SELECT * FROM deals WHERE ${field} = ? ORDER BY created_at DESC LIMIT 20`)
+  const stmt = db.query(`SELECT * FROM deals WHERE ${field} = ? ORDER BY created_at DESC LIMIT 20`)
   return stmt.all(userAddress) as Deal[]
 }
 
