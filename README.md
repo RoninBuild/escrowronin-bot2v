@@ -1,106 +1,28 @@
-# Quickstart Bot
+# RoninOTC (Towns Bot + Mini-App) | MVP
 
-A simple, barebones bot example perfect for beginners learning to build Towns bots.
+RoninOTC is an early MVP escrow bot for secure OTC deals inside Towns.
+Create a deal in chat, then complete the onchain steps in the mini-app.
 
-# Features
+## Demo flow
+1) Add the bot to a Towns chat
+2) Create a deal:
+   /escrow_create @username "product or deal description" <amount USDC>
+3) Mini-app opens to complete:
+   - deposit to escrow
+   - set terms (fees, expiration)
+   - optional arbitrator assignment
+   - confirm + release
 
-- **Slash commands**: Registering and handling `/commands`
-- **Message handling**: Detecting keywords in messages
-- **Sending messages**: Posting messages to channels
-- **Adding reactions**: Attaching emoji reactions to messages
-- **Reaction events**: Responding to user reactions
+## Smart contract
+Base escrow contract:
+0x61dA31C366D67d5De8A9E0E0CA280C7B3B900306
 
-## Slash Commands
+## Current status
+This is a time-boxed MVP shipped close to the deadline.
+Core mechanics are in place, UX and full integration are still in progress.
 
-- `/help` - Shows available commands and message triggers
-- `/time` - Displays the current server time
-
-## Message Triggers
-
-- Say "hello" - Bot greets you back
-- Say "ping" - Bot responds with "Pong!" and latency
-- Say "react" - Bot adds a thumbs up reaction to your message
-
-You will need to mention the bot if you're using the `Mentions, Commands, Replies & Reactions` message behavior for your bot.
-
-## Reaction Handling
-
-- React with 👋 to any message - Bot responds with "I saw your wave!"
-
-# Setup
-
-1. Copy `.env.sample` to `.env` and fill in your credentials:
-
-   ```bash
-   cp .env.sample .env
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   bun install
-   ```
-
-3. Run the bot:
-   ```bash
-   bun run dev
-   ```
-
-# Environment Variables
-
-Required variables in `.env`:
-
-- `APP_PRIVATE_DATA` - Your Towns app private data (base64 encoded)
-- `JWT_SECRET` - JWT secret for webhook authentication
-- `PORT` - Port to run the bot on (optional, defaults to 5123)
-
-# Usage
-
-Once the bot is running, installed to a space and added to a channel:
-
-**Try the slash commands:**
-
-- `/help` - See all available features
-- `/time` - Get the current time
-
-**Try the message triggers:**
-
-- Type "hello" anywhere in your message
-- Type "ping" to check bot latency
-- Type "react" to get a reaction
-
-**Try reactions:**
-
-- Add a 👋 reaction to any message
-
-# Code Structure
-
-The bot consists of two main files:
-
-## `src/commands.ts`
-
-Defines the slash commands available to users. Commands registered here appear in the slash command menu.
-
-## `src/index.ts`
-
-Main bot logic with:
-
-1. **Bot initialization** (`makeTownsBot`) - Creates bot instance with credentials and commands
-2. **Slash command handlers** (`onSlashCommand`) - Handle `/help` and `/time` commands
-3. **Message handler** (`onMessage`) - Respond to message keywords (hello, ping, react)
-4. **Reaction handler** (`onReaction`) - Respond to emoji reactions (👋)
-5. **Bot server setup** (`bot.start()`) - Starts the bot server with a Hono HTTP server
-
-## Extending this Bot
-
-To add your own features:
-
-1. **Add a slash command:**
-   - Add to `src/commands.ts`
-   - Go to `src/index.ts` and create a handler with `bot.onSlashCommand('yourcommand', async (handler, event) => { ... })`
-
-2. **Add message triggers:**
-   - Add conditions in the `bot.onMessage()` handler
-
-3. **Handle more events:**
-   - Use `bot.onReaction()`, `bot.onMessageEdit()`, `bot.onChannelJoin()`, etc.
+## Roadmap
+- Better deal management UX inside the bot
+- Arbitrator incentives paid in $TOWNS (auto swap from collected USDC)
+- Premium marketplace flows
+- Deeper native integration as an in-Towns app
