@@ -41,14 +41,15 @@ bot.onSlashCommand('time', async (handler, { channelId }) => {
 
 // /escrow_create
 bot.onSlashCommand('escrow_create', async (handler, context) => {
-    console.log('=== DEBUG ESCROW_CREATE ===')
-    console.log('Full context:', JSON.stringify(context, null, 2))
+    console.log('=== ESCROW_CREATE called ===')
+    console.log('Context keys:', Object.keys(context))
+    console.log('Options:', context.options)
 
     const { channelId, options } = context
 
     try {
         if (!options) {
-            await handler.sendMessage(channelId, `❌ Debug: options is undefined. Context keys: ${Object.keys(context).join(', ')}`)
+            await handler.sendMessage(channelId, `❌ No options provided. Available keys: ${Object.keys(context).join(', ')}`)
             return
         }
 
@@ -56,6 +57,8 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         const amount = options.amount as number
         const description = options.description as string
         const hours = (options.hours as number) || 48
+
+        console.log('Parsed params:', { seller, amount, description, hours })
 
         // Validate inputs
         if (!seller || !seller.startsWith('0x') || seller.length !== 42) {
@@ -119,14 +122,15 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
 // /escrow_info
 bot.onSlashCommand('escrow_info', async (handler, context) => {
-    console.log('=== DEBUG ESCROW_INFO ===')
-    console.log('Full context:', JSON.stringify(context, null, 2))
+    console.log('=== ESCROW_INFO called ===')
+    console.log('Context keys:', Object.keys(context))
+    console.log('Options:', context.options)
 
     const { channelId, options } = context
 
     try {
         if (!options || !options.address) {
-            await handler.sendMessage(channelId, `❌ Debug: options is ${JSON.stringify(options)}. Context keys: ${Object.keys(context).join(', ')}`)
+            await handler.sendMessage(channelId, `❌ No address provided. Available keys: ${Object.keys(context).join(', ')}`)
             return
         }
 
@@ -179,8 +183,8 @@ bot.onSlashCommand('escrow_info', async (handler, context) => {
 
 // /escrow_stats
 bot.onSlashCommand('escrow_stats', async (handler, context) => {
-    console.log('=== DEBUG ESCROW_STATS ===')
-    console.log('Full context:', JSON.stringify(context, null, 2))
+    console.log('=== ESCROW_STATS called ===')
+    console.log('Context keys:', Object.keys(context))
 
     const { channelId } = context
 
