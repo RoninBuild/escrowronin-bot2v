@@ -40,20 +40,30 @@ bot.onSlashCommand('time', async (handler, { channelId }) => {
 // ===== ESCROW COMMANDS =====
 
 // /escrow_create
-bot.onSlashCommand('escrow_create', async (handler, { channelId, options }) => {
+bot.onSlashCommand('escrow_create', async (handler, context) => {
+    console.log('=== DEBUG ESCROW_CREATE ===')
+    console.log('Full context:', JSON.stringify(context, null, 2))
+
+    const { channelId, options } = context
+
     try {
+        if (!options) {
+            await handler.sendMessage(channelId, `❌ Debug: options is undefined. Context keys: ${Object.keys(context).join(', ')}`)
+            return
+        }
+
         const seller = options.seller as string
         const amount = options.amount as number
         const description = options.description as string
         const hours = (options.hours as number) || 48
 
         // Validate inputs
-        if (!seller.startsWith('0x') || seller.length !== 42) {
+        if (!seller || !seller.startsWith('0x') || seller.length !== 42) {
             await handler.sendMessage(channelId, '❌ Invalid seller address. Must be a valid Ethereum address (0x...)')
             return
         }
 
-        if (amount <= 0) {
+        if (!amount || amount <= 0) {
             await handler.sendMessage(channelId, '❌ Amount must be greater than 0')
             return
         }
@@ -108,8 +118,18 @@ bot.onSlashCommand('escrow_create', async (handler, { channelId, options }) => {
 })
 
 // /escrow_info
-bot.onSlashCommand('escrow_info', async (handler, { channelId, options }) => {
+bot.onSlashCommand('escrow_info', async (handler, context) => {
+    console.log('=== DEBUG ESCROW_INFO ===')
+    console.log('Full context:', JSON.stringify(context, null, 2))
+
+    const { channelId, options } = context
+
     try {
+        if (!options || !options.address) {
+            await handler.sendMessage(channelId, `❌ Debug: options is ${JSON.stringify(options)}. Context keys: ${Object.keys(context).join(', ')}`)
+            return
+        }
+
         const address = options.address as string
 
         if (!address.startsWith('0x') || address.length !== 42) {
@@ -158,7 +178,12 @@ bot.onSlashCommand('escrow_info', async (handler, { channelId, options }) => {
 })
 
 // /escrow_stats
-bot.onSlashCommand('escrow_stats', async (handler, { channelId }) => {
+bot.onSlashCommand('escrow_stats', async (handler, context) => {
+    console.log('=== DEBUG ESCROW_STATS ===')
+    console.log('Full context:', JSON.stringify(context, null, 2))
+
+    const { channelId } = context
+
     try {
         const count = await getEscrowCount()
 
