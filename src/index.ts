@@ -3,6 +3,7 @@ import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName } from './blockchain'
+import { createDeal, getDealById, updateDealStatus } from './database'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -12,22 +13,18 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
 bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
-        '**EscrowRonin Bot - Available Commands:**\n\n' +
+        '**RoninOTC Bot - Available Commands:**\n\n' +
             '**Escrow Commands:**\n' +
-            '• `/escrow_create` - Create new escrow deal\n' +
+            '• `/escrow_create @buyer "description" amount` - Create OTC deal\n' +
             '• `/escrow_info <address>` - Get deal details\n' +
             '• `/escrow_stats` - View statistics\n\n' +
             '**Other Commands:**\n' +
             '• `/help` - Show this help message\n' +
             '• `/time` - Get the current time\n\n' +
-            '**Message Triggers:**\n' +
-            "• Mention me - I'll respond\n" +
-            "• React with 👋 - I'll wave back\n" +
-            '• Say "hello" - I\'ll greet you back\n' +
-            '• Say "ping" - I\'ll show latency\n' +
-            '• Say "react" - I\'ll add a reaction\n\n' +
+            '**Example:**\n' +
+            '`/escrow_create @alice "Logo design work" 100`\n\n' +
             '**About:**\n' +
-            'Trustless peer-to-peer escrow on Base.\n' +
+            'Trustless OTC escrow on Base with USDC.\n' +
             `Factory: ${config.factoryAddress}`,
     )
 })
@@ -39,83 +36,95 @@ bot.onSlashCommand('time', async (handler, { channelId }) => {
 
 // ===== ESCROW COMMANDS =====
 
-// /escrow_create
+// /escrow_create - WITH @MENTION PARSING
 bot.onSlashCommand('escrow_create', async (handler, context) => {
     console.log('=== ESCROW_CREATE called ===')
     console.log('Context keys:', Object.keys(context))
-    console.log('Options:', context.options)
+    console.log('Message:', context.message)
+    console.log('Mentions:', context.mentions)
 
-    const { channelId, options } = context
+    const { channelId, message, mentions, userId, spaceId } = context
 
     try {
-        if (!options) {
-            await handler.sendMessage(channelId, `❌ No options provided. Available keys: ${Object.keys(context).join(', ')}`)
+        // Parse command: /escrow_create @buyer description amount
+        // Example: /escrow_create @alice "Logo design" 100
+
+        if (!mentions || mentions.length === 0) {
+            await handler.sendMessage(channelId, '❌ Please mention the buyer:\n\n`/escrow_create @buyer "description" amount`\n\n**Example:**\n`/escrow_create @alice "Logo design" 100`')
             return
         }
 
-        const seller = options.seller as string
-        const amount = options.amount as number
-        const description = options.description as string
-        const hours = (options.hours as number) || 48
+        const buyerAddress = mentions[0] // First mention is buyer
 
-        console.log('Parsed params:', { seller, amount, description, hours })
+        // Parse message to extract description and amount
+        // Remove command and mention, split by quotes
+        const parts = message.replace('/escrow_create', '').trim()
 
-        // Validate inputs
-        if (!seller || !seller.startsWith('0x') || seller.length !== 42) {
-            await handler.sendMessage(channelId, '❌ Invalid seller address. Must be a valid Ethereum address (0x...)')
+        // Extract description (in quotes) and amount
+        const descMatch = parts.match(/"([^"]+)"/)
+        const amountMatch = parts.match(/(\d+(?:\.\d+)?)\s*(?:USDC)?$/i)
+
+        if (!descMatch || !amountMatch) {
+            await handler.sendMessage(
+                channelId,
+                '❌ Invalid format. Use:\n\n`/escrow_create @buyer "description" amount`\n\n**Example:**\n`/escrow_create @alice "Logo design" 100`'
+            )
             return
         }
 
-        if (!amount || amount <= 0) {
+        const description = descMatch[1]
+        const amount = parseFloat(amountMatch[1])
+
+        if (amount <= 0) {
             await handler.sendMessage(channelId, '❌ Amount must be greater than 0')
             return
         }
 
-        // Convert amount to USDC (6 decimals)
-        const amountUsdc = parseUnits(amount.toString(), 6)
+        // Generate unique deal ID
+        const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 
-        // Calculate deadline
-        const deadline = Math.floor(Date.now() / 1000) + (hours * 3600)
+        // Calculate deadline (48 hours default)
+        const deadline = Math.floor(Date.now() / 1000) + (48 * 3600)
 
-        // Hash description
-        const memoHash = keccak256(toHex(description))
-
-        // Encode createEscrow calldata
-        const calldata = encodeFunctionData({
-            abi: factoryAbi,
-            functionName: 'createEscrow',
-            args: [
-                seller as `0x${string}`,
-                config.usdcAddress,
-                amountUsdc,
-                BigInt(deadline),
-                '0x0000000000000000000000000000000000000000' as `0x${string}`, // no arbiter for now
-                memoHash,
-            ],
+        // Create deal in database
+        const deal = createDeal({
+            deal_id: dealId,
+            seller_address: userId, // Creator is seller
+            buyer_address: buyerAddress,
+            amount: amount.toString(),
+            token: 'USDC',
+            description,
+            deadline,
+            status: 'draft',
+            town_id: spaceId,
+            channel_id: channelId,
         })
 
-        // Send transaction request to user
+        console.log('✅ Deal created:', deal)
+
+        // Generate mini-app link
+        const miniAppUrl = `https://roninotc.vercel.app/deal/${dealId}`
+
+        // Send deal card
         await handler.sendMessage(
             channelId,
-            `**🤝 Creating Escrow Deal**\n\n` +
-            `**Seller:** ${seller}\n` +
+            `**🤝 OTC Deal Created**\n\n` +
+            `**Deal ID:** \`${dealId}\`\n` +
+            `**Seller:** <@${userId}>\n` +
+            `**Buyer:** <@${buyerAddress}>\n` +
             `**Amount:** ${amount} USDC\n` +
             `**Description:** ${description}\n` +
-            `**Deadline:** ${hours} hours\n\n` +
-            `💯 **Next Step:** You need to sign a transaction to create this deal.\n\n` +
-            `**Transaction Details:**\n` +
-            `• **To:** ${config.factoryAddress}\n` +
-            `• **Network:** Base Mainnet\n` +
-            `• **Function:** createEscrow\n\n` +
-            `💡️ *Note: This transaction does NOT transfer USDC yet. You'll fund the escrow in the next step.*\n\n` +
-            `**Calldata:**\n\`\`\`\n${calldata}\n\`\`\``,
+            `**Deadline:** 48 hours\n` +
+            `**Status:** ⏳ Draft (not on-chain yet)\n\n` +
+            `🔗 **[Open Deal in Mini App](${miniAppUrl})**\n\n` +
+            `_Buyer & Seller: Click the link to proceed with escrow creation on Base._`
         )
 
     } catch (error) {
-        console.error('Error creating escrow:', error)
+        console.error('Error creating deal:', error)
         await handler.sendMessage(
             channelId,
-            `❌ Failed to create escrow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            `❌ Failed to create deal: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
     }
 })
@@ -193,7 +202,7 @@ bot.onSlashCommand('escrow_stats', async (handler, context) => {
 
         await handler.sendMessage(
             channelId,
-            `**📊 Escrow Statistics**\n\n` +
+            `**📊 RoninOTC Statistics**\n\n` +
             `**Total Deals Created:** ${count}\n` +
             `**Factory Address:** ${config.factoryAddress}\n` +
             `**Network:** Base Mainnet\n\n` +
@@ -233,7 +242,7 @@ bot.onReaction(async (handler, { reaction, channelId }) => {
 })
 
 // Startup logs
-console.log(`🤝 EscrowRonin bot started on port ${config.port}`)
+console.log(`🤝 RoninOTC bot started on port ${config.port}`)
 console.log(`🏭 Factory: ${config.factoryAddress}`)
 console.log(`🪙 USDC: ${config.usdcAddress}`)
 
