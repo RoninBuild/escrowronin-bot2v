@@ -51,7 +51,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        const buyerAddress = mentions[0]
+        const buyerAddress = mentions[0].userId
         const parts = message.replace('/escrow_create', '').trim()
         const descMatch = parts.match(/"([^"]+)"/)
         const amountMatch = parts.match(/(\d+(?:\.\d+)?)\s*(?:USDC)?$/i)
@@ -84,7 +84,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             description,
             deadline,
             status: 'draft',
-            town_id: spaceId,
+            town_id: spaceId || '',
             channel_id: channelId,
         })
 
