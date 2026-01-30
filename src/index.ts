@@ -90,7 +90,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         console.log('✅ Deal created:', deal)
 
-        const miniAppUrl = `https://roninotc.vercel.app/deal/${dealId}`
+        const miniAppUrl = `https://roninotc-app.vercel.app/deal/${dealId}`
 
         await handler.sendMessage(
             channelId,
