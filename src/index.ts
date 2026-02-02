@@ -186,12 +186,12 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         console.log('✅ Deal created:', deal)
 
-        const miniAppUrl = `${config.appUrl}/deal/${dealId}`
+        const miniAppUrl = `${config.appUrl}/?dealId=${dealId}`
 
         await handler.sendMessage(
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
-            `**ID:** \`${dealId}\` (Click to copy)\n\n` +
+            `**Deal ID:**\n\`${dealId}\` \n\n` +
             `**Seller:** <@${userId}>\n\n` +
             `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
             `**Amount:** \`${amount} USDC\`\n\n` +
@@ -203,6 +203,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                     {
                         type: 'miniapp',
                         url: miniAppUrl,
+                        title: 'Open Deal',
                     }
                 ]
             }
