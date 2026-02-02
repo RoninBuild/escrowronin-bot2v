@@ -23,3 +23,5 @@ create a deal in chat → open the mini app → complete onchain steps on Base.
 Escrow contract: `0x61dA31C366D67d5De8A9E0E0CA280C7B3B900306`
 
 ---
+
+my X https://x.com/maronin_crypto
