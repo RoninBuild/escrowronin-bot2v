@@ -13,7 +13,7 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     identity: {
         name: 'RoninOTC',
         description: 'Trustless OTC escrow on Base with USDC.',
-        image: `${process.env.BASE_URL || 'https://roninotc-app.vercel.app'}/logo_otc.png`,
+        image: `${process.env.BASE_URL || 'https://roninotc-app.vercel.app'}/ronin_otc_standard.jpg`,
         domain: new URL(process.env.BASE_URL || 'https://roninotc-app.vercel.app').hostname,
     },
 })
