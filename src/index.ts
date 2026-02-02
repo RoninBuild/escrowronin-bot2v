@@ -55,7 +55,7 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
                 },
                 {
                     type: 'image',
-                    url: 'https://roninotc-app.vercel.app/logo.png',
+                    url: `${config.appUrl}/logo.png`,
                     alt: 'RoninOTC Logo',
                 }
             ]
@@ -146,6 +146,11 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             `**Status:** ⏳ Draft (not on-chain yet)`,
             {
                 attachments: [
+                    {
+                        type: 'image',
+                        url: `${config.appUrl}/logo.png`,
+                        alt: 'RoninOTC Deal',
+                    },
                     {
                         type: 'miniapp',
                         url: miniAppUrl,
