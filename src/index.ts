@@ -63,6 +63,21 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
     )
 })
 
+bot.onSlashCommand('app_only', async (handler, { channelId }) => {
+    await handler.sendMessage(
+        channelId,
+        '🌐 Open RoninOTC Dashboard (No Image Debug)',
+        {
+            attachments: [
+                {
+                    type: 'miniapp',
+                    url: config.appUrl,
+                }
+            ]
+        }
+    )
+})
+
 // /escrow_create - WITH @MENTION PARSING
 bot.onSlashCommand('escrow_create', async (handler, context) => {
     console.log('=== ESCROW_CREATE called ===')
