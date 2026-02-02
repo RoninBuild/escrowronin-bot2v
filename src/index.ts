@@ -231,6 +231,85 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
     }
 })
 
+// /escrow_create_test (Hidden)
+bot.onSlashCommand('escrow_create_test', async (handler, context) => {
+    console.log('=== ESCROW_CREATE_TEST called ===')
+    const { channelId, args, spaceId } = context
+
+    try {
+        // Expecting: <seller> <buyer> <description...>
+        if (args.length < 3) {
+            await handler.sendMessage(channelId, '❌ Invalid format. Use: `/escrow_create_test <seller> <buyer> <description>`')
+            return
+        }
+
+        const sellerInput = args[0]
+        const buyerInput = args[1]
+        const description = args.slice(2).join(' ')
+        const amount = 0.01
+
+        const sellerAddress = await resolveAddress(sellerInput)
+        const buyerAddress = await resolveAddress(buyerInput)
+
+        if (!sellerAddress) {
+            await handler.sendMessage(channelId, `❌ Invalid Seller address/ENS: ${sellerInput}`)
+            return
+        }
+        if (!buyerAddress) {
+            await handler.sendMessage(channelId, `❌ Invalid Buyer address/ENS: ${buyerInput}`)
+            return
+        }
+
+        const dealId = `TEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        const deadline = Math.floor(Date.now() / 1000) + (48 * 3600)
+
+        const deal = createDeal({
+            deal_id: dealId,
+            seller_address: sellerAddress,
+            buyer_address: buyerAddress,
+            amount: amount.toString(),
+            token: 'USDC',
+            description: `[TEST] ${description}`,
+            deadline,
+            status: 'draft',
+            town_id: spaceId || '',
+            channel_id: channelId,
+        })
+
+        console.log('✅ TEST Deal created:', deal)
+
+        const miniAppUrl = `${config.appUrl}/deal/${dealId}`
+
+        await handler.sendMessage(
+            channelId,
+            `**🧪 TEST Deal Created**\n\n` +
+            `**Deal ID:** \`${dealId}\`\n` +
+            `**Seller:** ${sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`}\n` +
+            `**Buyer:** ${buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`}\n` +
+            `**Amount:** ${amount} USDC\n` +
+            `**Description:** ${description}\n` +
+            `**Deadline:** 48 hours\n` +
+            `**Status:** ⏳ Draft (Test Mode)`,
+            {
+                attachments: [
+                    {
+                        type: 'miniapp',
+                        url: miniAppUrl,
+                    },
+                    {
+                        type: 'image',
+                        url: `${config.appUrl}/logo.png`,
+                        alt: 'RoninOTC Test Deal',
+                    }
+                ]
+            }
+        )
+    } catch (error) {
+        console.error('Error creating test deal:', error)
+        await handler.sendMessage(channelId, `❌ Error: ${error instanceof Error ? error.message : 'Unknown'}`)
+    }
+})
+
 // /escrow_info
 bot.onSlashCommand('escrow_info', async (handler, context) => {
     const { channelId, args } = context

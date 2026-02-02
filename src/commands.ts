@@ -26,28 +26,40 @@ const commands = [
         description: 'Create a new escrow deal',
         options: [
             {
-                name: 'seller',
-                description: 'Seller wallet address',
+                name: 'buyer',
+                description: 'Buyer wallet/ENS/@user',
                 type: 3,
                 required: true,
             },
             {
-                name: 'amount',
-                description: 'Amount in USDC',
-                type: 10,
+                name: 'any_args',
+                description: 'Description ... Amount',
+                type: 3,
+                required: false,
+            },
+        ],
+    },
+    {
+        name: 'escrow_create_test',
+        description: 'DEBUG: Create deal with custom roles (Hidden)',
+        options: [
+            {
+                name: 'seller',
+                description: 'Seller Address/ENS',
+                type: 3,
+                required: true,
+            },
+            {
+                name: 'buyer',
+                description: 'Buyer Address/ENS',
+                type: 3,
                 required: true,
             },
             {
                 name: 'description',
-                description: 'What is being sold',
+                description: 'Description',
                 type: 3,
                 required: true,
-            },
-            {
-                name: 'hours',
-                description: 'Deadline in hours (default: 48)',
-                type: 10,
-                required: false,
             },
         ],
     },
