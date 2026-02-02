@@ -39,7 +39,7 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
 
 
 bot.onSlashCommand('app', async (handler, { channelId }) => {
-    const miniappUrl = `${process.env.BASE_URL || config.appUrl}/index.html`
+    const miniappUrl = config.appUrl
     await handler.sendMessage(
         channelId,
         '🚀 **Open RoninOTC Dashboard**\nCreate, manage, and track your trustless escrow deals on Base.',
@@ -184,17 +184,17 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
     console.log('✅ Deal created:', deal)
 
-    const miniAppUrl = `${process.env.BASE_URL || config.appUrl}/index.html?dealId=${dealId}`
+    const miniAppUrl = `${config.appUrl}/deal/${dealId}`
 
     await handler.sendMessage(
         channelId,
         `**🤝 OTC Deal Created**\n\n` +
-        `**Deal ID:** \`${dealId}\` (Click to copy)\n\n` +
-        `**Seller:** <@${userId}>\n` +
-        `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n` +
-        `**Amount:** \`${amount} USDC\`\n` +
-        `**Description:** ${descriptionInput}\n` +
-        `**Deadline:** ${deadlineInput || '48h'}\n` +
+        `**ID:** \`${dealId}\` (Click to copy)\n\n` +
+        `**Seller:** <@${userId}>\n\n` +
+        `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
+        `**Amount:** \`${amount} USDC\`\n\n` +
+        `**Description:** ${descriptionInput}\n\n` +
+        `**Deadline:** ${deadlineInput || '48h'}\n\n` +
         `**Status:** ⏳ Draft (not on-chain yet)`,
         {
             attachments: [
