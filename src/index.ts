@@ -49,11 +49,6 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
                 {
                     type: 'miniapp',
                     url: miniappUrl,
-                },
-                {
-                    type: 'image',
-                    url: `${process.env.BASE_URL || config.appUrl}/logo.png`,
-                    alt: 'RoninOTC Logo',
                 }
             ]
         }
@@ -195,11 +190,6 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                     {
                         type: 'miniapp',
                         url: miniAppUrl,
-                    },
-                    {
-                        type: 'image',
-                        url: `${process.env.BASE_URL || config.appUrl}/logo.png`,
-                        alt: 'RoninOTC Deal',
                     }
                 ]
             }
