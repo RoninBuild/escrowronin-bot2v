@@ -24,16 +24,15 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
 bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
-        '**RoninOTC Bot - Available Commands:**\n\n' +
         '🚀 `/app` - Launch dashboard\n' +
-        '🤝 `/escrow_create @buyer "description" amount` - Create OTC deal\n' +
+        '🤝 `/escrow_create <buyer> <deadline> <description> <amount>` - Create OTC deal (Deadline: 48h, 1d, 1w)\n' +
         '📊 `/escrow_info <address>` - Get deal details\n' +
         '📈 `/escrow_stats` - View global statistics\n' +
         '❓ `/help` - Show this help message\n\n' +
         '**Example:**\n' +
-        '`/escrow_create @alice "Logo design work" 100`\n\n' +
+        '`/escrow_create @alice 48h "Logo design" 100`\n\n' +
         '**About:**\n' +
-        'Trustless OTC escrow on Base with USDC.\n' +
+        'Trustless OTC escrow on Base.\n' +
         `Factory: ${config.factoryAddress}`,
     )
 })
