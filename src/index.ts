@@ -203,7 +203,6 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                     {
                         type: 'miniapp',
                         url: miniAppUrl,
-                        title: 'Open Deal',
                     }
                 ]
             }
