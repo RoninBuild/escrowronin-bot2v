@@ -137,10 +137,6 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             buyerAddress = await resolveAddress(buyerInput)
         }
 
-        if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${buyerInput}`)
-            return
-        }
     }
 
         // 2. Parse Amount
