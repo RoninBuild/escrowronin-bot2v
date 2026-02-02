@@ -105,10 +105,15 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
+        if (args.length < 4) {
+            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <buyer> <deadline> <description> <amount>`\nExample: `/escrow_create @alice 48h "Logo design" 100`')
+            return
+        }
+
         const buyerInput = args[0]
         const deadlineInput = args[1]
-        const descriptionInput = args[2]
-        const amountInput = args[3]
+        const amountInput = args[args.length - 1]
+        const descriptionInput = args.slice(2, -1).join(' ')
 
         // 1. Resolve Buyer Address
         let buyerAddress: string | null = null
@@ -136,8 +141,6 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${buyerInput}`)
             return
         }
-        await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${targetInput}`)
-        return
     }
 
         // 2. Parse Amount
