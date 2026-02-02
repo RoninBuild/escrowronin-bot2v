@@ -13,7 +13,7 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     identity: {
         name: 'RoninOTC',
         description: 'Trustless OTC escrow on Base with USDC.',
-        image: 'https://roninotc-app.vercel.app/logo.png',
+        image: `${process.env.BASE_URL || 'https://roninotc-app.vercel.app'}/logo.png`,
         domain: new URL(process.env.BASE_URL || 'https://roninotc-app.vercel.app').hostname,
     },
 })
@@ -52,7 +52,7 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
                 },
                 {
                     type: 'image',
-                    url: `https://roninotc-app.vercel.app/logo.png`,
+                    url: `${process.env.BASE_URL || config.appUrl}/logo.png`,
                     alt: 'RoninOTC Logo',
                 }
             ]
@@ -198,7 +198,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                     },
                     {
                         type: 'image',
-                        url: `https://roninotc-app.vercel.app/logo.png`,
+                        url: `${process.env.BASE_URL || config.appUrl}/logo.png`,
                         alt: 'RoninOTC Deal',
                     }
                 ]
