@@ -214,7 +214,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                 attachments: [
                     {
                         type: 'miniapp',
-                        url: miniappUrl,
+                        url: miniAppUrl,
                     },
                     {
                         type: 'image',
@@ -418,7 +418,20 @@ console.log(`🪙 USDC: ${config.usdcAddress}`)
 
 const app = bot.start()
 
-// Serve static files from public folder
+// Helper to serve index.html with injected BASE_URL
+app.get('/index.html', async (c) => {
+    const baseUrl = process.env.BASE_URL || `http://localhost:${config.port}`
+    try {
+        const file = Bun.file('./public/index.html')
+        let html = await file.text()
+        html = html.replace(/__BASE_URL__/g, baseUrl)
+        return c.html(html)
+    } catch (e) {
+        return c.text('index.html not found', 404)
+    }
+})
+
+// Serve static files from public folder (for other assets)
 app.use('/*', serveStatic({ root: './public' }))
 
 // ===== CORS MIDDLEWARE =====
