@@ -50,6 +50,11 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
         {
             attachments: [
                 {
+                    type: 'image',
+                    url: 'https://roninotc-app.vercel.app/logo.png',
+                    alt: 'RoninOTC Logo',
+                },
+                {
                     type: 'miniapp',
                     url: config.appUrl,
                 }
