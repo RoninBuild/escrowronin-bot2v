@@ -11,8 +11,8 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     identity: {
         name: 'RoninOTC',
         description: 'Trustless OTC escrow on Base with USDC.',
-        image: 'https://roninotc-app.vercel.app/logo.png', // Fallback URL or placeholder
-        domain: 'https://roninotc-app.vercel.app',
+        image: 'https://roninotc-app.vercel.app/logo.png',
+        domain: 'roninotc-app.vercel.app',
     },
 })
 
@@ -52,6 +52,12 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
                 {
                     type: 'miniapp',
                     url: config.appUrl,
+                },
+                {
+                    type: 'link',
+                    url: config.appUrl,
+                    title: 'Open RoninOTC Dashboard',
+                    description: 'Trustless OTC escrow on Base with USDC.',
                 }
             ]
         }
@@ -62,10 +68,10 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
 bot.onSlashCommand('escrow_create', async (handler, context) => {
     console.log('=== ESCROW_CREATE called ===')
     console.log('Context keys:', Object.keys(context))
-    console.log('Message:', context.message)
+    console.log('Message:', context.args.join(' '))
     console.log('Mentions:', context.mentions)
 
-    const { channelId, message, mentions, userId, spaceId } = context
+    const { channelId, args, mentions, userId, spaceId } = context
 
     try {
         if (!mentions || mentions.length === 0) {
@@ -74,9 +80,9 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         }
 
         const buyerAddress = mentions[0].userId
-        const parts = message.replace('/escrow_create', '').trim()
-        const descMatch = parts.match(/"([^"]+)"/)
-        const amountMatch = parts.match(/(\d+(?:\.\d+)?)\s*(?:USDC)?$/i)
+        const input = args.join(' ')
+        const descMatch = input.match(/"([^"]+)"/)
+        const amountMatch = input.match(/(\d+(?:\.\d+)?)\s*(?:USDC)?$/i)
 
         if (!descMatch || !amountMatch) {
             await handler.sendMessage(
@@ -145,15 +151,14 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
 // /escrow_info
 bot.onSlashCommand('escrow_info', async (handler, context) => {
-    const { channelId, options } = context
+    const { channelId, args } = context
 
     try {
-        if (!options || !options.address) {
+        const address = args[0]
+        if (!address) {
             await handler.sendMessage(channelId, '❌ Please provide escrow address')
             return
         }
-
-        const address = options.address as string
 
         if (!address.startsWith('0x') || address.length !== 42) {
             await handler.sendMessage(channelId, '❌ Invalid escrow address')
