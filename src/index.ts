@@ -4,6 +4,7 @@ import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName } from './blockchain'
 import { createDeal, getDealById, updateDealStatus, getDealsByUser } from './database'
+import { serveStatic } from 'hono/bun'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -12,7 +13,7 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
         name: 'RoninOTC',
         description: 'Trustless OTC escrow on Base with USDC.',
         image: 'https://roninotc-app.vercel.app/logo.png',
-        domain: 'roninotc-app.vercel.app',
+        domain: new URL(process.env.BASE_URL || 'https://roninotc-app.vercel.app').hostname,
     },
 })
 
@@ -44,6 +45,7 @@ bot.onSlashCommand('time', async (handler, { channelId }) => {
 })
 
 bot.onSlashCommand('app', async (handler, { channelId }) => {
+    const miniappUrl = `${process.env.BASE_URL || config.appUrl}/index.html`
     await handler.sendMessage(
         channelId,
         '🚀 **Open RoninOTC Dashboard**\nCreate, manage, and track your trustless escrow deals on Base.',
@@ -51,11 +53,11 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
             attachments: [
                 {
                     type: 'miniapp',
-                    url: config.appUrl,
+                    url: miniappUrl,
                 },
                 {
                     type: 'image',
-                    url: `${config.appUrl}/logo.png`,
+                    url: `https://roninotc-app.vercel.app/logo.png`,
                     alt: 'RoninOTC Logo',
                 }
             ]
@@ -64,6 +66,7 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
 })
 
 bot.onSlashCommand('app_only', async (handler, { channelId }) => {
+    const miniappUrl = `${process.env.BASE_URL || config.appUrl}/index.html`
     await handler.sendMessage(
         channelId,
         '🌐 Open RoninOTC Dashboard (No Image Debug)',
@@ -71,7 +74,7 @@ bot.onSlashCommand('app_only', async (handler, { channelId }) => {
             attachments: [
                 {
                     type: 'miniapp',
-                    url: config.appUrl,
+                    url: miniappUrl,
                 }
             ]
         }
@@ -195,7 +198,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         console.log('✅ Deal created:', deal)
 
-        const miniAppUrl = `${config.appUrl}/deal/${dealId}`
+        const miniAppUrl = `${process.env.BASE_URL || config.appUrl}/index.html?dealId=${dealId}`
 
         await handler.sendMessage(
             channelId,
@@ -211,11 +214,11 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                 attachments: [
                     {
                         type: 'miniapp',
-                        url: miniAppUrl,
+                        url: miniappUrl,
                     },
                     {
                         type: 'image',
-                        url: `${config.appUrl}/logo.png`,
+                        url: `https://roninotc-app.vercel.app/logo.png`,
                         alt: 'RoninOTC Deal',
                     }
                 ]
@@ -278,7 +281,7 @@ bot.onSlashCommand('escrow_create_test', async (handler, context) => {
 
         console.log('✅ TEST Deal created:', deal)
 
-        const miniAppUrl = `${config.appUrl}/deal/${dealId}`
+        const miniAppUrl = `${process.env.BASE_URL || config.appUrl}/index.html?dealId=${dealId}`
 
         await handler.sendMessage(
             channelId,
@@ -298,7 +301,7 @@ bot.onSlashCommand('escrow_create_test', async (handler, context) => {
                     },
                     {
                         type: 'image',
-                        url: `${config.appUrl}/logo.png`,
+                        url: `https://roninotc-app.vercel.app/logo.png`,
                         alt: 'RoninOTC Test Deal',
                     }
                 ]
@@ -414,6 +417,9 @@ console.log(`🏭 Factory: ${config.factoryAddress}`)
 console.log(`🪙 USDC: ${config.usdcAddress}`)
 
 const app = bot.start()
+
+// Serve static files from public folder
+app.use('/*', serveStatic({ root: './public' }))
 
 // ===== CORS MIDDLEWARE =====
 app.use('*', async (c, next) => {
