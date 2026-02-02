@@ -1,4 +1,5 @@
 import { createTownsClient, parseAppPrivateData, userIdToAddress } from '@towns-protocol/sdk'
+import { bin_fromHexString } from '@towns-protocol/utils'
 import { RegisterRequestSchema, AppMetadataSchema, UpdateAppMetadataRequestSchema, AppMetadataUpdateSchema } from '@towns-protocol/proto'
 import { create } from '@bufbuild/protobuf'
 import config from '../src/config'
@@ -31,10 +32,14 @@ async function main() {
     // Using bot address as owner address for registration
     const appOwnerId = appId;
 
+    const appIdBytes = appId;
+    const appOwnerIdBytes = appId;
+
     console.log(`Bot ID: ${botId}`);
+    console.log(`App ID (Hex): ${botId}`);
 
     const metadata = {
-        username: 'roninotc_bot', // Unique username
+        username: 'roninotc_bot',
         displayName: 'RoninOTC',
         description: 'Trustless OTC escrow on Base with USDC.',
         imageUrl: 'https://roninotc-app.vercel.app/logo.png',
@@ -49,49 +54,44 @@ async function main() {
 
     try {
         console.log('Checking existing registration...');
-        const existing = await appRegistry.getAppMetadata({ appId });
+        const existing = await appRegistry.getAppMetadata({ appId: appIdBytes });
 
         if (existing && existing.metadata) {
             console.log('Bot already registered. Updating metadata...');
 
-            const updateReq = create(UpdateAppMetadataRequestSchema, {
-                appId,
-                metadata: create(AppMetadataUpdateSchema, {
-                    displayName: metadata.displayName,
-                    description: metadata.description,
-                    imageUrl: metadata.imageUrl,
-                    avatarUrl: metadata.avatarUrl,
-                    externalUrl: metadata.externalUrl,
-                    motto: metadata.motto,
-                    slashCommands: metadata.slashCommands,
-                }),
-                updateMask: ['display_name', 'description', 'image_url', 'avatar_url', 'external_url', 'slash_commands', 'motto']
-            });
+            const updateReq = {
+                appId: appIdBytes,
+                metadata: metadata,
+                updateMask: ['username', 'display_name', 'description', 'image_url', 'avatar_url', 'external_url', 'slash_commands', 'motto']
+            };
 
             await appRegistry.updateAppMetadata(updateReq);
             console.log('Metadata updated successfully!');
         } else {
-            throw new Error('Not found');
+            throw new Error('NotFound');
         }
-    } catch (e) {
-        console.log('Bot not registered. Attempting new registration...');
-
-        const regReq = create(RegisterRequestSchema, {
-            appId,
-            appOwnerId,
-            metadata: create(AppMetadataSchema, metadata)
-        });
-
-        await appRegistry.register(regReq);
-        console.log('Registration successful!');
+    } catch (e: any) {
+        if (e.message?.includes('NotFound') || e.code === 5 || e.code === 13) {
+            console.log('Bot not registered or not found. Attempting new registration...');
+            const regReq = {
+                appId: appIdBytes,
+                appOwnerId: appOwnerIdBytes,
+                metadata: metadata,
+            };
+            await appRegistry.register(regReq);
+            console.log('Registration successful!');
+        } else {
+            console.error('Error during registration/update:', e);
+            throw e;
+        }
     }
 
     // Set active status just in case
     try {
-        await appRegistry.setAppActiveStatus({ appId, active: true });
+        await appRegistry.setAppActiveStatus({ appId: appIdBytes, active: true });
         console.log('Bot set to ACTIVE status.');
     } catch (e) {
-        console.warn('Failed to set active status, but registration might still be OK.');
+        console.warn('Failed to set active status:', e);
     }
 
     console.log('\n--- SUCCESS ---');
