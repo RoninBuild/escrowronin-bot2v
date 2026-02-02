@@ -2,10 +2,31 @@
   "name": "EscrowRonin",
   "description": "Trustless escrow on Base",
   "version": "1.0.0",
-  "capabilities": ["escrow", "payments", "miniapp"],
+  "capabilities": [
+    "escrow",
+    "payments",
+    "miniapp"
+  ],
   "commands": [
-    {"name": "/escrow create", "description": "Create deal"},
-    {"name": "/escrow info", "description": "Get info"},
-    {"name": "/escrow stats", "description": "View stats"}
+    {
+      "name": "/help",
+      "description": "Get help"
+    },
+    {
+      "name": "/app",
+      "description": "Launch dashboard"
+    },
+    {
+      "name": "/escrow_create",
+      "description": "Create OTC deal"
+    },
+    {
+      "name": "/escrow_info",
+      "description": "Get deal details"
+    },
+    {
+      "name": "/escrow_stats",
+      "description": "View global stats"
+    }
   ]
 }
