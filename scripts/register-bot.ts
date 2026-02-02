@@ -42,8 +42,8 @@ async function main() {
         username: 'roninotc_bot',
         displayName: 'RoninOTC',
         description: 'Trustless OTC escrow on Base with USDC.',
-        imageUrl: 'https://roninotc-app.vercel.app/logo.png',
-        avatarUrl: 'https://roninotc-app.vercel.app/logo.png',
+        imageUrl: 'https://roninotc-app.vercel.app/branding_otc_final.jpg',
+        avatarUrl: 'https://roninotc-app.vercel.app/branding_otc_final.jpg',
         externalUrl: 'https://roninotc-app.vercel.app',
         motto: 'Trustless OTC Escrow on Base',
         slashCommands: commands.map(c => ({
