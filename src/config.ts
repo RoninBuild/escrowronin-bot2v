@@ -5,6 +5,7 @@ export const config = {
   usdcAddress: (process.env.USDC_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913') as `0x${string}`,
   explorerUrl: process.env.BASESCAN_URL || 'https://basescan.org',
   port: parseInt(process.env.PORT || '5123'),
+  appUrl: process.env.APP_URL || 'https://roninotc-app.vercel.app',
 } as const
 
 export default config
