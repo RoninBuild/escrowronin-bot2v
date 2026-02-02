@@ -8,6 +8,12 @@ import { createDeal, getDealById, updateDealStatus, getDealsByUser } from './dat
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
     baseRpcUrl: config.rpcUrl,
+    identity: {
+        name: 'RoninOTC',
+        description: 'Trustless OTC escrow on Base with USDC.',
+        image: 'https://roninotc-app.vercel.app/logo.png', // Fallback URL or placeholder
+        domain: 'https://roninotc-app.vercel.app',
+    },
 })
 
 // ===== BOT COMMANDS =====
