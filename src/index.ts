@@ -147,12 +147,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             {
                 attachments: [
                     {
-                        type: 'image',
-                        url: `${config.appUrl}/logo.png`,
-                        alt: 'RoninOTC Deal',
-                    },
-                    {
-                        type: 'miniapp',
+                        type: 'link',
                         url: miniAppUrl,
                     }
                 ]
