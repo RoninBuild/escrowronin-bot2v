@@ -7,7 +7,11 @@ const commands = [
     },
     {
         name: 'app',
-        description: 'Open the RoninOTC Web App',
+        description: 'Launch the RoninOTC trustless escrow dashboard.'
+    },
+    {
+        name: 'app_only',
+        description: 'Launch dashboard (no image debug).'
     },
     {
         name: 'time',
