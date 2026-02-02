@@ -110,38 +110,49 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        const sellerInput = args[0]
-        const buyerInput = args[1]
-        const deadlineInput = args[2]
-        const amountInput = args[args.length - 1]
+        const sellerInput = args[0] || ''
+        const buyerInput = args[1] || ''
+        const deadlineInput = args[2] || ''
+        const amountInput = args[args.length - 1] || ''
         const descriptionInput = args.slice(3, -1).join(' ')
 
-        // 1. Resolve Seller Address
+        console.log('Inputs:', { sellerInput, buyerInput, deadlineInput, amountInput, descriptionInput })
+        console.log('Mentions:', mentions)
+
         let sellerAddress: string | null = null
-        if (mentions && mentions.length > 0) {
-            // Check if sellerInput matches first mention
-            sellerAddress = mentions.find(m => sellerInput.includes(m.userId))?.userId || null
+        let buyerAddress: string | null = null
+        let mentionIdx = 0
+
+        // 1. Resolve Seller Address
+        // If input is empty or looks like a mention placeholder, take from mentions array
+        if (!sellerInput || sellerInput.includes('@')) {
+            if (mentions && mentions[mentionIdx]) {
+                sellerAddress = mentions[mentionIdx].userId
+                mentionIdx++
+            }
         }
-        if (!sellerAddress) {
+        if (!sellerAddress && sellerInput) {
             sellerAddress = await resolveAddress(sellerInput)
         }
 
         if (!sellerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve seller address: ${sellerInput}`)
+            await handler.sendMessage(channelId, `❌ Could not resolve seller address. Please provide a full address or mention.`)
             return
         }
 
         // 2. Resolve Buyer Address
-        let buyerAddress: string | null = null
-        if (mentions && mentions.length > 0) {
-            buyerAddress = mentions.find(m => buyerInput.includes(m.userId))?.userId || null
+        if (!buyerInput || buyerInput.includes('@')) {
+            if (mentions && mentions[mentionIdx]) {
+                buyerAddress = mentions[mentionIdx].userId
+                mentionIdx++
+            }
         }
-        if (!buyerAddress) {
+        if (!buyerAddress && buyerInput) {
             buyerAddress = await resolveAddress(buyerInput)
         }
 
         if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${buyerInput}`)
+            await handler.sendMessage(channelId, `❌ Could not resolve buyer address. Please provide a full address or mention.`)
             return
         }
 
