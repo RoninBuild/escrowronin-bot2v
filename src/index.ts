@@ -25,12 +25,12 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
         '🚀 `/app` - Launch dashboard\n' +
-        '🤝 `/escrow_create <buyer> <deadline> <description> <amount>` - Create OTC deal (Deadline: 48h, 1d, 1w)\n' +
+        '🤝 `/escrow_create <seller> <buyer> <deadline> <description> <amount>` - Create OTC deal (Deadline: 48h, 1d, 1w)\n' +
         '📊 `/escrow_info <address>` - Get deal details\n' +
         '📈 `/escrow_stats` - View global statistics\n' +
         '❓ `/help` - Show this help message\n\n' +
         '**Example:**\n' +
-        '`/escrow_create @alice 48h "Logo design" 100`\n\n' +
+        '`/escrow_create 0xSeller 0xBuyer 48h "Logo design" 100`\n\n' +
         '**About:**\n' +
         'Trustless OTC escrow on Base.\n' +
         `Factory: ${config.factoryAddress}`,
@@ -105,34 +105,37 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        if (args.length < 4) {
-            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <buyer> <deadline> <description> <amount>`\nExample: `/escrow_create @alice 48h "Logo design" 100`')
+        if (args.length < 5) {
+            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <seller> <buyer> <deadline> <description> <amount>`\nExample: `/escrow_create 0xSeller 0xBuyer 48h "Logo design" 100`')
             return
         }
 
-        const buyerInput = args[0]
-        const deadlineInput = args[1]
+        const sellerInput = args[0]
+        const buyerInput = args[1]
+        const deadlineInput = args[2]
         const amountInput = args[args.length - 1]
-        const descriptionInput = args.slice(2, -1).join(' ')
+        const descriptionInput = args.slice(3, -1).join(' ')
 
-        // 1. Resolve Buyer Address
-        let buyerAddress: string | null = null
-
-        // Case A: Mention
+        // 1. Resolve Seller Address
+        let sellerAddress: string | null = null
         if (mentions && mentions.length > 0) {
-            // Check if the FIRST argument matches a mention
-            // Usually mentions come as separate objects, but user might type @alice. 
-            // Logic: If args[0] looks like a mention OR mentions array exists, prioritize explicit mention object if it matches position?
-            // Actually, if user types `@alice`, `args[0]` might be empty string or `<@id>`.
-            // Towns SDK parser puts mentions in `mentions` array.
-            // We'll trust `mentions[0]` if `args[0]` looks like a mention placeholder OR if we assume the first param IS the buyer.
-            // But what if user types `/escrow_create @alice ...`? `mentions[0]` is reliable.
-            // Wait, if user types plain address, `mentions` is empty.
-            // We should check `mentions` first.
-            buyerAddress = mentions[0].userId
+            // Check if sellerInput matches first mention
+            sellerAddress = mentions.find(m => sellerInput.includes(m.userId))?.userId || null
+        }
+        if (!sellerAddress) {
+            sellerAddress = await resolveAddress(sellerInput)
         }
 
-        // Case B: Direct Address or ENS (if not a mention)
+        if (!sellerAddress) {
+            await handler.sendMessage(channelId, `❌ Could not resolve seller address: ${sellerInput}`)
+            return
+        }
+
+        // 2. Resolve Buyer Address
+        let buyerAddress: string | null = null
+        if (mentions && mentions.length > 0) {
+            buyerAddress = mentions.find(m => buyerInput.includes(m.userId))?.userId || null
+        }
         if (!buyerAddress) {
             buyerAddress = await resolveAddress(buyerInput)
         }
@@ -173,7 +176,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         const deal = createDeal({
             deal_id: dealId,
-            seller_address: userId,
+            seller_address: sellerAddress,
             buyer_address: buyerAddress,
             amount: amount.toString(),
             token: 'USDC',
@@ -192,7 +195,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
             `**Deal ID:**\n\n\`\`\`\n${dealId}\n\`\`\`\n\n` +
-            `**Seller:** <@${userId}>\n\n` +
+            `**Seller:** ${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)}\n\n` +
             `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
             `**Amount:** \`${amount} USDC\`\n\n` +
             `**Description:** ${descriptionInput}\n\n` +
