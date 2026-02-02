@@ -25,12 +25,12 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
         '🚀 `/app` - Launch dashboard\n' +
-        '🤝 `/escrow_create <seller> <buyer> <deadline> <description> <amount>` - Create OTC deal (Deadline: 48h, 1d, 1w)\n' +
+        '🤝 `/escrow_create <buyer> <deadline> <description> <amount>` - Create OTC deal (Deadline: 48h, 1d, 1w)\n' +
         '📊 `/escrow_info <address>` - Get deal details\n' +
         '📈 `/escrow_stats` - View global statistics\n' +
         '❓ `/help` - Show this help message\n\n' +
         '**Example:**\n' +
-        '`/escrow_create 0xSeller 0xBuyer 48h "Logo design" 100`\n\n' +
+        '`/escrow_create @alice 48h "Logo design" 100`\n\n' +
         '**About:**\n' +
         'Trustless OTC escrow on Base.\n' +
         `Factory: ${config.factoryAddress}`,
@@ -105,48 +105,29 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        if (args.length < 5) {
-            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <seller> <buyer> <deadline> <description> <amount>`\nExample: `/escrow_create 0xSeller 0xBuyer 48h "Logo design" 100`')
+        if (args.length < 4) {
+            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <buyer> <deadline> <description> <amount>`\nExample: `/escrow_create @alice 48h "Logo design" 100`')
             return
         }
 
-        const sellerInput = args[0] || ''
-        const buyerInput = args[1] || ''
-        const deadlineInput = args[2] || ''
+        const buyerInput = args[0] || ''
+        const deadlineInput = args[1] || ''
         const amountInput = args[args.length - 1] || ''
-        const descriptionInput = args.slice(3, -1).join(' ')
+        const descriptionInput = args.slice(2, -1).join(' ')
 
-        console.log('Inputs:', { sellerInput, buyerInput, deadlineInput, amountInput, descriptionInput })
+        console.log('Inputs:', { buyerInput, deadlineInput, amountInput, descriptionInput })
         console.log('Mentions:', mentions)
 
-        // 1. Resolve Seller Address
-        let sellerAddress: string | null = null
+        const sellerAddress = userId
         let buyerAddress: string | null = null
-        let mentionIdx = 0
 
         // Helper to check if input looks like a shortened address or mention
         const isMentionOrShortened = (val: string) => !val || val.includes('...') || val.includes('@') || val.includes('<')
 
-        if (isMentionOrShortened(sellerInput)) {
-            if (mentions && mentions[mentionIdx]) {
-                sellerAddress = mentions[mentionIdx].userId
-                mentionIdx++
-            }
-        }
-        if (!sellerAddress && sellerInput) {
-            sellerAddress = await resolveAddress(sellerInput)
-        }
-
-        if (!sellerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve seller address. Please provide a full address or mention.`)
-            return
-        }
-
-        // 2. Resolve Buyer Address
+        // 1. Resolve Buyer Address
         if (isMentionOrShortened(buyerInput)) {
-            if (mentions && mentions[mentionIdx]) {
-                buyerAddress = mentions[mentionIdx].userId
-                mentionIdx++
+            if (mentions && mentions[0]) {
+                buyerAddress = mentions[0].userId
             }
         }
         if (!buyerAddress && buyerInput) {
@@ -208,7 +189,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
             `**Deal ID:**\n\n\`\`\`\n${dealId}\n\`\`\`\n\n` +
-            `**Seller:** ${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)}\n\n` +
+            `**Seller:** <@${userId}>\n\n` +
             `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
             `**Amount:** \`${amount} USDC\`\n\n` +
             `**Description:** ${descriptionInput}\n\n` +

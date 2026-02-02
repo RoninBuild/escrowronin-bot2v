@@ -18,12 +18,6 @@ const commands = [
         description: 'Create a new escrow deal',
         options: [
             {
-                name: 'seller',
-                description: 'Seller wallet/ENS/@user',
-                type: 3,
-                required: true,
-            },
-            {
                 name: 'buyer',
                 description: 'Buyer wallet/ENS/@user',
                 type: 3,
