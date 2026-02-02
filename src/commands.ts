@@ -30,14 +30,14 @@ const commands = [
                 required: true,
             },
             {
-                name: 'deadline',
-                description: 'Deadline (e.g. 48h, 2d, 1w)',
+                name: 'description',
+                description: 'Deal description',
                 type: 3,
                 required: true,
             },
             {
-                name: 'description',
-                description: 'Deal description',
+                name: 'deadline',
+                description: 'Deadline (e.g. 48h, 2d, 1w)',
                 type: 3,
                 required: true,
             },

@@ -25,12 +25,12 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
         '🚀 `/app` - Launch dashboard\n' +
-        '🤝 `/escrow_create <seller> <buyer> <deadline> <description> <amount>` - Create OTC deal (Deadline: 48h, 1d, 1w)\n' +
+        '🤝 `/escrow_create <seller> <buyer> <description> <deadline> <amount>` - Create OTC deal\n' +
         '📊 `/escrow_info <address>` - Get deal details\n' +
         '📈 `/escrow_stats` - View global statistics\n' +
         '❓ `/help` - Show this help message\n\n' +
         '**Example:**\n' +
-        '`/escrow_create 0xSeller 0xBuyer 48h "Logo design" 100`\n\n' +
+        '`/escrow_create 0xSeller 0xBuyer "Logo design" 48h 100`\n\n' +
         '**About:**\n' +
         'Trustless OTC escrow on Base.\n' +
         `Factory: ${config.factoryAddress}`,
@@ -106,17 +106,17 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         }
 
         if (args.length < 5) {
-            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <seller> <buyer> <deadline> <description> <amount>`\nExample: `/escrow_create 0xSeller 0xBuyer 48h "Logo design" 100`')
+            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <seller> <buyer> <description> <deadline> <amount>`\nExample: `/escrow_create 0xSeller 0xBuyer "Logo design" 48h 100`')
             return
         }
 
         const sellerInput = args[0] || ''
         const buyerInput = args[1] || ''
-        const deadlineInput = args[2] || ''
+        const deadlineInput = args[3] || ''
         const amountInput = args[args.length - 1] || ''
-        const descriptionInput = args.slice(3, -1).join(' ')
+        const descriptionInput = args[2] || ''
 
-        console.log('Inputs:', { sellerInput, buyerInput, deadlineInput, amountInput, descriptionInput })
+        console.log('Inputs:', { sellerInput, buyerInput, descriptionInput, deadlineInput, amountInput })
         console.log('Mentions:', mentions)
 
         let sellerAddress: string | null = null
@@ -138,7 +138,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         }
 
         if (!sellerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve seller address. Please provide a full address or mention.`)
+            await handler.sendMessage(channelId, `❌ Could not resolve seller address.`)
             return
         }
 
@@ -154,7 +154,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         }
 
         if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve buyer address. Please provide a full address or mention.`)
+            await handler.sendMessage(channelId, `❌ Could not resolve buyer address.`)
             return
         }
 
