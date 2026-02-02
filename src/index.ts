@@ -119,13 +119,15 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         console.log('Inputs:', { sellerInput, buyerInput, deadlineInput, amountInput, descriptionInput })
         console.log('Mentions:', mentions)
 
+        // 1. Resolve Seller Address
         let sellerAddress: string | null = null
         let buyerAddress: string | null = null
         let mentionIdx = 0
 
-        // 1. Resolve Seller Address
-        // If input is empty or looks like a mention placeholder, take from mentions array
-        if (!sellerInput || sellerInput.includes('@')) {
+        // Helper to check if input looks like a shortened address or mention
+        const isMentionOrShortened = (val: string) => !val || val.includes('...') || val.includes('@') || val.includes('<')
+
+        if (isMentionOrShortened(sellerInput)) {
             if (mentions && mentions[mentionIdx]) {
                 sellerAddress = mentions[mentionIdx].userId
                 mentionIdx++
@@ -141,7 +143,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         }
 
         // 2. Resolve Buyer Address
-        if (!buyerInput || buyerInput.includes('@')) {
+        if (isMentionOrShortened(buyerInput)) {
             if (mentions && mentions[mentionIdx]) {
                 buyerAddress = mentions[mentionIdx].userId
                 mentionIdx++
