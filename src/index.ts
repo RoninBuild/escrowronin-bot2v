@@ -78,39 +78,102 @@ bot.onSlashCommand('app_only', async (handler, { channelId }) => {
     )
 })
 
-// /escrow_create - WITH @MENTION PARSING
+// Helper to verify/resolve address
+import { normalize } from 'viem/ens'
+import { mainnet } from 'viem/chains'
+import { createPublicClient, http, isAddress } from 'viem'
+
+const mainnetClient = createPublicClient({
+    chain: mainnet,
+    transport: http()
+})
+
+async function resolveAddress(input: string): Promise<string | null> {
+    // 1. Check if it's a valid address
+    if (isAddress(input)) return input
+
+    // 2. Check if it's an ENS
+    if (input.includes('.')) {
+        try {
+            const address = await mainnetClient.getEnsAddress({
+                name: normalize(input),
+            })
+            return address
+        } catch (e) {
+            console.error('ENS resolution error:', e)
+            return null
+        }
+    }
+
+    return null
+}
+
+// /escrow_create
 bot.onSlashCommand('escrow_create', async (handler, context) => {
     console.log('=== ESCROW_CREATE called ===')
-    console.log('Context keys:', Object.keys(context))
-    console.log('Message:', context.args.join(' '))
-    console.log('Mentions:', context.mentions)
 
     const { channelId, args, mentions, userId, spaceId } = context
 
     try {
-        if (!mentions || mentions.length === 0) {
-            await handler.sendMessage(channelId, '❌ Please mention the buyer:\n\n`/escrow_create @buyer "description" amount`\n\n**Example:**\n`/escrow_create @alice "Logo design" 100`')
-            return
-        }
-
-        const buyerAddress = mentions[0].userId
-        const input = args.join(' ')
-        const descMatch = input.match(/"([^"]+)"/)
-        const amountMatch = input.match(/(\d+(?:\.\d+)?)\s*(?:USDC)?$/i)
-
-        if (!descMatch || !amountMatch) {
-            await handler.sendMessage(
-                channelId,
-                '❌ Invalid format. Use:\n\n`/escrow_create @buyer "description" amount`\n\n**Example:**\n`/escrow_create @alice "Logo design" 100`'
+        // Parsing logic: <target> <description...> <amount>
+        if (args.length < 3) {
+            await handler.sendMessage(channelId,
+                '❌ Invalid format. Use:\n\n' +
+                '`/escrow_create <buyer> <description> <amount>`\n\n' +
+                '**Examples:**\n' +
+                '`/escrow_create @alice Logo design 100`\n' +
+                '`/escrow_create 0x123...abc Contract work 500`\n' +
+                '`/escrow_create vitalik.eth Audit services 1000`'
             )
             return
         }
 
-        const description = descMatch[1]
-        const amount = parseFloat(amountMatch[1])
+        const targetInput = args[0]
+        const amountInput = args[args.length - 1]
+        const description = args.slice(1, -1).join(' ')
 
-        if (amount <= 0) {
-            await handler.sendMessage(channelId, '❌ Amount must be greater than 0')
+        // 1. Resolve Buyer Address
+        let buyerAddress: string | null = null
+
+        // Case A: Mention
+        if (mentions && mentions.length > 0) {
+            // Check if the FIRST argument matches a mention
+            // Usually mentions come as separate objects, but user might type @alice. 
+            // Logic: If args[0] looks like a mention OR mentions array exists, prioritize explicit mention object if it matches position?
+            // Actually, if user types `@alice`, `args[0]` might be empty string or `<@id>`.
+            // Towns SDK parser puts mentions in `mentions` array.
+            // We'll trust `mentions[0]` if `args[0]` looks like a mention placeholder OR if we assume the first param IS the buyer.
+            // But what if user types `/escrow_create @alice ...`? `mentions[0]` is reliable.
+            // Wait, if user types plain address, `mentions` is empty.
+            // We should check `mentions` first.
+            buyerAddress = mentions[0].userId
+        }
+
+        // Case B: Direct Address or ENS (if not a mention)
+        if (!buyerAddress) {
+            buyerAddress = await resolveAddress(targetInput)
+        } else {
+            // Double check: if args[0] is NOT a mention but we have a mention elsewhere? 
+            // Simple rule: If `args[0]` corresponds to the mention, use it. 
+            // If `mentions` has items, use the first one.
+            // But if `args[0]` is "0x...", `mentions` should be empty.
+        }
+
+        if (!buyerAddress) {
+            await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${targetInput}`)
+            return
+        }
+
+        // 2. Parse Amount
+        const amount = parseFloat(amountInput.replace(/USDC/i, ''))
+
+        if (isNaN(amount) || amount <= 0) {
+            await handler.sendMessage(channelId, '❌ Invalid amount. Must be a number > 0')
+            return
+        }
+
+        if (!description) {
+            await handler.sendMessage(channelId, '❌ Description is required')
             return
         }
 
@@ -139,7 +202,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             `**🤝 OTC Deal Created**\n\n` +
             `**Deal ID:** \`${dealId}\`\n` +
             `**Seller:** <@${userId}>\n` +
-            `**Buyer:** <@${buyerAddress}>\n` +
+            `**Buyer:** ${targetInput.startsWith('0x') ? `\`${targetInput.slice(0, 6)}...${targetInput.slice(-4)}\`` : (targetInput.includes('.') ? targetInput : `<@${buyerAddress}>`)}\n` +
             `**Amount:** ${amount} USDC\n` +
             `**Description:** ${description}\n` +
             `**Deadline:** 48 hours\n` +
