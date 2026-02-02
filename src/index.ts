@@ -186,7 +186,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         console.log('✅ Deal created:', deal)
 
-        const miniAppUrl = `${config.appUrl}/index.html?dealId=${dealId}`
+        const miniAppUrl = `${config.appUrl}/index.html`
 
         await handler.sendMessage(
             channelId,
