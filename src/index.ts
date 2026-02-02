@@ -52,12 +52,6 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
                 {
                     type: 'miniapp',
                     url: config.appUrl,
-                },
-                {
-                    type: 'link',
-                    url: config.appUrl,
-                    title: 'Open RoninOTC Dashboard',
-                    description: 'Trustless OTC escrow on Base with USDC.',
                 }
             ]
         }
