@@ -5,6 +5,7 @@ import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName } from './blockchain'
 import { createDeal, getDealById, updateDealStatus, getDealsByUser } from './database'
 import { serveStatic } from 'hono/bun'
+import fs from 'node:fs/promises'
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -24,13 +25,11 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
         '**RoninOTC Bot - Available Commands:**\n\n' +
-        '**Escrow Commands:**\n' +
-        '• `/escrow_create @buyer "description" amount` - Create OTC deal\n' +
-        '• `/escrow_info <address>` - Get deal details\n' +
-        '• `/escrow_stats` - View statistics\n\n' +
-        '**Other Commands:**\n' +
-        '• `/help` - Show this help message\n' +
-        '• `/time` - Get the current time\n\n' +
+        '🚀 `/app` - Launch dashboard\n' +
+        '🤝 `/escrow_create @buyer "description" amount` - Create OTC deal\n' +
+        '📊 `/escrow_info <address>` - Get deal details\n' +
+        '📈 `/escrow_stats` - View global statistics\n' +
+        '❓ `/help` - Show this help message\n\n' +
         '**Example:**\n' +
         '`/escrow_create @alice "Logo design work" 100`\n\n' +
         '**About:**\n' +
@@ -39,10 +38,6 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
     )
 })
 
-bot.onSlashCommand('time', async (handler, { channelId }) => {
-    const currentTime = new Date().toLocaleString()
-    await handler.sendMessage(channelId, `Current time: ${currentTime} ⏰`)
-})
 
 bot.onSlashCommand('app', async (handler, { channelId }) => {
     const miniappUrl = `${process.env.BASE_URL || config.appUrl}/index.html`
@@ -65,21 +60,6 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
     )
 })
 
-bot.onSlashCommand('app_only', async (handler, { channelId }) => {
-    const miniappUrl = `${process.env.BASE_URL || config.appUrl}/index.html`
-    await handler.sendMessage(
-        channelId,
-        '🌐 Open RoninOTC Dashboard (No Image Debug)',
-        {
-            attachments: [
-                {
-                    type: 'miniapp',
-                    url: miniappUrl,
-                }
-            ]
-        }
-    )
-})
 
 // Helper to verify/resolve address
 import { normalize } from 'viem/ens'
@@ -234,100 +214,33 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
     }
 })
 
-// /escrow_create_test (Hidden)
-bot.onSlashCommand('escrow_create_test', async (handler, context) => {
-    console.log('=== ESCROW_CREATE_TEST called ===')
-    const { channelId, args, spaceId } = context
-
-    try {
-        // Expecting: <seller> <buyer> <description...>
-        if (args.length < 3) {
-            await handler.sendMessage(channelId, '❌ Invalid format. Use: `/escrow_create_test <seller> <buyer> <description>`')
-            return
-        }
-
-        const sellerInput = args[0]
-        const buyerInput = args[1]
-        const description = args.slice(2).join(' ')
-        const amount = 0.01
-
-        const sellerAddress = await resolveAddress(sellerInput)
-        const buyerAddress = await resolveAddress(buyerInput)
-
-        if (!sellerAddress) {
-            await handler.sendMessage(channelId, `❌ Invalid Seller address/ENS: ${sellerInput}`)
-            return
-        }
-        if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Invalid Buyer address/ENS: ${buyerInput}`)
-            return
-        }
-
-        const dealId = `TEST-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        const deadline = Math.floor(Date.now() / 1000) + (48 * 3600)
-
-        const deal = createDeal({
-            deal_id: dealId,
-            seller_address: sellerAddress,
-            buyer_address: buyerAddress,
-            amount: amount.toString(),
-            token: 'USDC',
-            description: `[TEST] ${description}`,
-            deadline,
-            status: 'draft',
-            town_id: spaceId || '',
-            channel_id: channelId,
-        })
-
-        console.log('✅ TEST Deal created:', deal)
-
-        const miniAppUrl = `${process.env.BASE_URL || config.appUrl}/index.html?dealId=${dealId}`
-
-        await handler.sendMessage(
-            channelId,
-            `**🧪 TEST Deal Created**\n\n` +
-            `**Deal ID:** \`${dealId}\`\n` +
-            `**Seller:** ${sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`}\n` +
-            `**Buyer:** ${buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`}\n` +
-            `**Amount:** ${amount} USDC\n` +
-            `**Description:** ${description}\n` +
-            `**Deadline:** 48 hours\n` +
-            `**Status:** ⏳ Draft (Test Mode)`,
-            {
-                attachments: [
-                    {
-                        type: 'miniapp',
-                        url: miniAppUrl,
-                    },
-                    {
-                        type: 'image',
-                        url: `https://roninotc-app.vercel.app/logo.png`,
-                        alt: 'RoninOTC Test Deal',
-                    }
-                ]
-            }
-        )
-    } catch (error) {
-        console.error('Error creating test deal:', error)
-        await handler.sendMessage(channelId, `❌ Error: ${error instanceof Error ? error.message : 'Unknown'}`)
-    }
-})
 
 // /escrow_info
-bot.onSlashCommand('escrow_info', async (handler, context) => {
-    const { channelId, args } = context
+bot.onSlashCommand('escrow_info', async (handler, { channelId, args, mentions }) => {
 
     try {
-        const address = args[0]
-        if (!address) {
-            await handler.sendMessage(channelId, '❌ Please provide escrow address')
+        const input = args[0]
+        if (!input) {
+            await handler.sendMessage(channelId, '❌ Please provide escrow address, ENS or @mention')
             return
         }
 
-        if (!address.startsWith('0x') || address.length !== 42) {
-            await handler.sendMessage(channelId, '❌ Invalid escrow address')
+        // Try to resolve (Mentions/ENS)
+        let address = input
+        if (mentions && mentions.length > 0) {
+            address = mentions[0].userId
+        } else {
+            const resolved = await resolveAddress(input)
+            if (resolved) address = resolved
+        }
+
+        if (!isAddress(address)) {
+            await handler.sendMessage(channelId, '❌ Invalid address or resolution failed')
             return
         }
+
+        // Check if it's likely a contract address or a user address
+        // For now, assume if it passes getDealInfo, it's a contract.
 
         const info = await getDealInfo(address as `0x${string}`)
         const amountUsdc = Number(info.amount) / 1_000_000
@@ -422,8 +335,7 @@ const app = bot.start()
 app.get('/index.html', async (c) => {
     const baseUrl = process.env.BASE_URL || `http://localhost:${config.port}`
     try {
-        const file = Bun.file('./public/index.html')
-        let html = await file.text()
+        let html = await fs.readFile('./public/index.html', 'utf-8')
         html = html.replace(/__BASE_URL__/g, baseUrl)
         return c.html(html)
     } catch (e) {
