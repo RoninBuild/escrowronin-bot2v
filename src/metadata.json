@@ -2,7 +2,7 @@
   "name": "EscrowRonin",
   "description": "Trustless escrow on Base",
   "version": "1.0.0",
-  "capabilities": ["escrow", "payments"],
+  "capabilities": ["escrow", "payments", "miniapp"],
   "commands": [
     {"name": "/escrow create", "description": "Create deal"},
     {"name": "/escrow info", "description": "Get info"},
