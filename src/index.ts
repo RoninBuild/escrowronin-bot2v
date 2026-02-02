@@ -137,81 +137,84 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             buyerAddress = await resolveAddress(buyerInput)
         }
 
-    }
+        if (!buyerAddress) {
+            await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${buyerInput}`)
+            return
+        }
 
         // 2. Parse Amount
         const amount = parseFloat(amountInput?.replace(/USDC/i, '') || '')
 
-    if (isNaN(amount) || amount <= 0) {
-        await handler.sendMessage(channelId, '❌ Invalid amount. Must be a number > 0')
-        return
-    }
-
-    if (!descriptionInput) {
-        await handler.sendMessage(channelId, '❌ Description is required')
-        return
-    }
-
-    const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-    // 3. Parse Deadline (simple: h, d, w)
-    let deadlineSecs = 48 * 3600 // Default 48h
-    if (deadlineInput) {
-        const match = deadlineInput.match(/^(\d+)([hdw])$/i)
-        if (match) {
-            const val = parseInt(match[1])
-            const unit = match[2].toLowerCase()
-            if (unit === 'h') deadlineSecs = val * 3600
-            else if (unit === 'd') deadlineSecs = val * 3600 * 24
-            else if (unit === 'w') deadlineSecs = val * 3600 * 24 * 7
+        if (isNaN(amount) || amount <= 0) {
+            await handler.sendMessage(channelId, '❌ Invalid amount. Must be a number > 0')
+            return
         }
-    }
-    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadlineSecs
 
-    const deal = createDeal({
-        deal_id: dealId,
-        seller_address: userId,
-        buyer_address: buyerAddress,
-        amount: amount.toString(),
-        token: 'USDC',
-        description: descriptionInput,
-        deadline: deadlineTimestamp,
-        status: 'draft',
-        town_id: spaceId || '',
-        channel_id: channelId,
-    })
-
-    console.log('✅ Deal created:', deal)
-
-    const miniAppUrl = `${config.appUrl}/deal/${dealId}`
-
-    await handler.sendMessage(
-        channelId,
-        `**🤝 OTC Deal Created**\n\n` +
-        `**ID:** \`${dealId}\` (Click to copy)\n\n` +
-        `**Seller:** <@${userId}>\n\n` +
-        `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
-        `**Amount:** \`${amount} USDC\`\n\n` +
-        `**Description:** ${descriptionInput}\n\n` +
-        `**Deadline:** ${deadlineInput || '48h'}\n\n` +
-        `**Status:** ⏳ Draft (not on-chain yet)`,
-        {
-            attachments: [
-                {
-                    type: 'miniapp',
-                    url: miniAppUrl,
-                }
-            ]
+        if (!descriptionInput) {
+            await handler.sendMessage(channelId, '❌ Description is required')
+            return
         }
-    )
 
-} catch (error) {
-    console.error('Error creating deal:', error)
-    await handler.sendMessage(
-        channelId,
-        `❌ Failed to create deal: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
-}
+        const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+        // 3. Parse Deadline (simple: h, d, w)
+        let deadlineSecs = 48 * 3600 // Default 48h
+        if (deadlineInput) {
+            const match = deadlineInput.match(/^(\d+)([hdw])$/i)
+            if (match) {
+                const val = parseInt(match[1])
+                const unit = match[2].toLowerCase()
+                if (unit === 'h') deadlineSecs = val * 3600
+                else if (unit === 'd') deadlineSecs = val * 3600 * 24
+                else if (unit === 'w') deadlineSecs = val * 3600 * 24 * 7
+            }
+        }
+        const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadlineSecs
+
+        const deal = createDeal({
+            deal_id: dealId,
+            seller_address: userId,
+            buyer_address: buyerAddress,
+            amount: amount.toString(),
+            token: 'USDC',
+            description: descriptionInput,
+            deadline: deadlineTimestamp,
+            status: 'draft',
+            town_id: spaceId || '',
+            channel_id: channelId,
+        })
+
+        console.log('✅ Deal created:', deal)
+
+        const miniAppUrl = `${config.appUrl}/deal/${dealId}`
+
+        await handler.sendMessage(
+            channelId,
+            `**🤝 OTC Deal Created**\n\n` +
+            `**ID:** \`${dealId}\` (Click to copy)\n\n` +
+            `**Seller:** <@${userId}>\n\n` +
+            `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
+            `**Amount:** \`${amount} USDC\`\n\n` +
+            `**Description:** ${descriptionInput}\n\n` +
+            `**Deadline:** ${deadlineInput || '48h'}\n\n` +
+            `**Status:** ⏳ Draft (not on-chain yet)`,
+            {
+                attachments: [
+                    {
+                        type: 'miniapp',
+                        url: miniAppUrl,
+                    }
+                ]
+            }
+        )
+
+    } catch (error) {
+        console.error('Error creating deal:', error)
+        await handler.sendMessage(
+            channelId,
+            `❌ Failed to create deal: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+    }
 })
 
 
