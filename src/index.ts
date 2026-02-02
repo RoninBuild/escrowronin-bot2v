@@ -106,9 +106,10 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        const targetInput = args[0]
-        const amountInput = args[args.length - 1]
-        const description = args.slice(1, -1).join(' ')
+        const buyerInput = args[0]
+        const deadlineInput = args[1]
+        const descriptionInput = args[2]
+        const amountInput = args[3]
 
         // 1. Resolve Buyer Address
         let buyerAddress: string | null = null
@@ -129,79 +130,90 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         // Case B: Direct Address or ENS (if not a mention)
         if (!buyerAddress) {
-            buyerAddress = await resolveAddress(targetInput)
-        } else {
-            // Double check: if args[0] is NOT a mention but we have a mention elsewhere? 
-            // Simple rule: If `args[0]` corresponds to the mention, use it. 
-            // If `mentions` has items, use the first one.
-            // But if `args[0]` is "0x...", `mentions` should be empty.
+            buyerAddress = await resolveAddress(buyerInput)
         }
 
         if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${targetInput}`)
+            await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${buyerInput}`)
             return
         }
+        await handler.sendMessage(channelId, `❌ Could not resolve buyer address: ${targetInput}`)
+        return
+    }
 
         // 2. Parse Amount
-        const amount = parseFloat(amountInput.replace(/USDC/i, ''))
+        const amount = parseFloat(amountInput?.replace(/USDC/i, '') || '')
 
-        if (isNaN(amount) || amount <= 0) {
-            await handler.sendMessage(channelId, '❌ Invalid amount. Must be a number > 0')
-            return
-        }
-
-        if (!description) {
-            await handler.sendMessage(channelId, '❌ Description is required')
-            return
-        }
-
-        const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        const deadline = Math.floor(Date.now() / 1000) + (48 * 3600)
-
-        const deal = createDeal({
-            deal_id: dealId,
-            seller_address: userId,
-            buyer_address: buyerAddress,
-            amount: amount.toString(),
-            token: 'USDC',
-            description,
-            deadline,
-            status: 'draft',
-            town_id: spaceId || '',
-            channel_id: channelId,
-        })
-
-        console.log('✅ Deal created:', deal)
-
-        const miniAppUrl = `${process.env.BASE_URL || config.appUrl}/index.html?dealId=${dealId}`
-
-        await handler.sendMessage(
-            channelId,
-            `**🤝 OTC Deal Created**\n\n` +
-            `**Deal ID:** \`${dealId}\`\n` +
-            `**Seller:** <@${userId}>\n` +
-            `**Buyer:** ${targetInput.startsWith('0x') ? `\`${targetInput.slice(0, 6)}...${targetInput.slice(-4)}\`` : (targetInput.includes('.') ? targetInput : `<@${buyerAddress}>`)}\n` +
-            `**Amount:** ${amount} USDC\n` +
-            `**Description:** ${description}\n` +
-            `**Deadline:** 48 hours\n` +
-            `**Status:** ⏳ Draft (not on-chain yet)`,
-            {
-                attachments: [
-                    {
-                        type: 'miniapp',
-                        url: miniAppUrl,
-                    }
-                ]
-            }
-        )
-
-    } catch (error) {
-        console.error('Error creating deal:', error)
-        await handler.sendMessage(
-            channelId,
-            `❌ Failed to create deal: ${error instanceof Error ? error.message : 'Unknown error'}`
-        )
+    if (isNaN(amount) || amount <= 0) {
+        await handler.sendMessage(channelId, '❌ Invalid amount. Must be a number > 0')
+        return
     }
+
+    if (!descriptionInput) {
+        await handler.sendMessage(channelId, '❌ Description is required')
+        return
+    }
+
+    const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    // 3. Parse Deadline (simple: h, d, w)
+    let deadlineSecs = 48 * 3600 // Default 48h
+    if (deadlineInput) {
+        const match = deadlineInput.match(/^(\d+)([hdw])$/i)
+        if (match) {
+            const val = parseInt(match[1])
+            const unit = match[2].toLowerCase()
+            if (unit === 'h') deadlineSecs = val * 3600
+            else if (unit === 'd') deadlineSecs = val * 3600 * 24
+            else if (unit === 'w') deadlineSecs = val * 3600 * 24 * 7
+        }
+    }
+    const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadlineSecs
+
+    const deal = createDeal({
+        deal_id: dealId,
+        seller_address: userId,
+        buyer_address: buyerAddress,
+        amount: amount.toString(),
+        token: 'USDC',
+        description: descriptionInput,
+        deadline: deadlineTimestamp,
+        status: 'draft',
+        town_id: spaceId || '',
+        channel_id: channelId,
+    })
+
+    console.log('✅ Deal created:', deal)
+
+    const miniAppUrl = `${process.env.BASE_URL || config.appUrl}/index.html?dealId=${dealId}`
+
+    await handler.sendMessage(
+        channelId,
+        `**🤝 OTC Deal Created**\n\n` +
+        `**Deal ID:** \`${dealId}\` (Click to copy)\n\n` +
+        `**Seller:** <@${userId}>\n` +
+        `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n` +
+        `**Amount:** \`${amount} USDC\`\n` +
+        `**Description:** ${descriptionInput}\n` +
+        `**Deadline:** ${deadlineInput || '48h'}\n` +
+        `**Status:** ⏳ Draft (not on-chain yet)`,
+        {
+            attachments: [
+                {
+                    type: 'miniapp',
+                    url: miniAppUrl,
+                }
+            ]
+        }
+    )
+
+} catch (error) {
+    console.error('Error creating deal:', error)
+    await handler.sendMessage(
+        channelId,
+        `❌ Failed to create deal: ${error instanceof Error ? error.message : 'Unknown error'}`
+    )
+}
 })
 
 
