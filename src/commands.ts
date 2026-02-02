@@ -6,6 +6,10 @@ const commands = [
         description: 'Get help with bot commands',
     },
     {
+        name: 'app',
+        description: 'Open the RoninOTC Web App',
+    },
+    {
         name: 'time',
         description: 'Get the current time',
     },

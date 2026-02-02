@@ -7,6 +7,7 @@ import { createDeal, getDealById, updateDealStatus, getDealsByUser } from './dat
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
+    baseRpcUrl: config.rpcUrl,
 })
 
 // ===== BOT COMMANDS =====
@@ -16,24 +17,39 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
         '**RoninOTC Bot - Available Commands:**\n\n' +
-            '**Escrow Commands:**\n' +
-            '• `/escrow_create @buyer "description" amount` - Create OTC deal\n' +
-            '• `/escrow_info <address>` - Get deal details\n' +
-            '• `/escrow_stats` - View statistics\n\n' +
-            '**Other Commands:**\n' +
-            '• `/help` - Show this help message\n' +
-            '• `/time` - Get the current time\n\n' +
-            '**Example:**\n' +
-            '`/escrow_create @alice "Logo design work" 100`\n\n' +
-            '**About:**\n' +
-            'Trustless OTC escrow on Base with USDC.\n' +
-            `Factory: ${config.factoryAddress}`,
+        '**Escrow Commands:**\n' +
+        '• `/escrow_create @buyer "description" amount` - Create OTC deal\n' +
+        '• `/escrow_info <address>` - Get deal details\n' +
+        '• `/escrow_stats` - View statistics\n\n' +
+        '**Other Commands:**\n' +
+        '• `/help` - Show this help message\n' +
+        '• `/time` - Get the current time\n\n' +
+        '**Example:**\n' +
+        '`/escrow_create @alice "Logo design work" 100`\n\n' +
+        '**About:**\n' +
+        'Trustless OTC escrow on Base with USDC.\n' +
+        `Factory: ${config.factoryAddress}`,
     )
 })
 
 bot.onSlashCommand('time', async (handler, { channelId }) => {
     const currentTime = new Date().toLocaleString()
     await handler.sendMessage(channelId, `Current time: ${currentTime} ⏰`)
+})
+
+bot.onSlashCommand('app', async (handler, { channelId }) => {
+    await handler.sendMessage(
+        channelId,
+        '🚀 **Open RoninOTC Dashboard**\nCreate, manage, and track your trustless escrow deals on Base.',
+        {
+            attachments: [
+                {
+                    type: 'miniapp',
+                    url: config.appUrl,
+                }
+            ]
+        }
+    )
 })
 
 // /escrow_create - WITH @MENTION PARSING
@@ -90,7 +106,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         console.log('✅ Deal created:', deal)
 
-        const miniAppUrl = `https://roninotc-app.vercel.app/deal/${dealId}`
+        const miniAppUrl = `${config.appUrl}/deal/${dealId}`
 
         await handler.sendMessage(
             channelId,
@@ -101,9 +117,15 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             `**Amount:** ${amount} USDC\n` +
             `**Description:** ${description}\n` +
             `**Deadline:** 48 hours\n` +
-            `**Status:** ⏳ Draft (not on-chain yet)\n\n` +
-            `🔗 **[Open Deal in Mini App](${miniAppUrl})**\n\n` +
-            `_Buyer & Seller: Click the link to proceed with escrow creation on Base._`
+            `**Status:** ⏳ Draft (not on-chain yet)`,
+            {
+                attachments: [
+                    {
+                        type: 'miniapp',
+                        url: miniAppUrl,
+                    }
+                ]
+            }
         )
 
     } catch (error) {
@@ -223,10 +245,10 @@ const app = bot.start()
 
 // ===== CORS MIDDLEWARE =====
 app.use('*', async (c, next) => {
-  await next()
-  c.header('Access-Control-Allow-Origin', '*')
-  c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    await next()
+    c.header('Access-Control-Allow-Origin', '*')
+    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 })
 
 // ===== API ENDPOINTS (after bot.start) =====
