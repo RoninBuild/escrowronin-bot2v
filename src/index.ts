@@ -3,7 +3,7 @@ import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName } from './blockchain'
-import { createDeal, getDealById, updateDealStatus, getDealsByUser } from './database'
+import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDeals } from './database'
 import { serveStatic } from 'hono/bun'
 import fs from 'node:fs/promises'
 
@@ -435,6 +435,62 @@ bot.onReaction(async (handler, { reaction, channelId }) => {
 console.log(`🤝 RoninOTC bot started on port ${config.port}`)
 console.log(`🏭 Factory: ${config.factoryAddress}`)
 console.log(`🪙 USDC: ${config.usdcAddress}`)
+
+// Polling Notification System
+async function pollDeals() {
+    try {
+        const activeDeals = getActiveDeals()
+        for (const deal of activeDeals) {
+            if (!deal.escrow_address) continue
+
+            try {
+                const info = await getDealInfo(deal.escrow_address as `0x${string}`)
+                const currentStatusName = getStatusName(info.status).toLowerCase()
+
+                // Map chain status to DB/App status
+                // Chain: CREATED, FUNDED, RELEASED, REFUNDED, DISPUTED, RESOLVED
+                // DB: created, funded, released, refunded, disputed, resolved
+
+                if (deal.status !== currentStatusName) {
+                    console.log(`[Poll] Status change detected for ${deal.deal_id}: ${deal.status} -> ${currentStatusName}`)
+
+                    updateDealStatus(deal.deal_id, currentStatusName as any, deal.escrow_address)
+
+                    // Notify on specific transitions
+                    if (currentStatusName === 'disputed') {
+                        console.log(`[Poll] Sending DISPUTE notification for ${deal.deal_id}`)
+                        await bot.sendMessage(
+                            deal.channel_id,
+                            `⚠️ **DISPUTE OPENED**\n\n` +
+                            `Deal \`${deal.deal_id}\` has been flagged for dispute.\n` +
+                            `Arbitrator: 0xdA50...7698\n\n` +
+                            `The protocol arbitrator will review the transaction evidence.`
+                        ).catch(e => console.error('Failed to send poll notification:', e))
+                    }
+
+                    if (currentStatusName === 'released') {
+                        await bot.sendMessage(deal.channel_id, `💎 **DEAL COMPLETED**\nFunds released to seller for Deal \`${deal.deal_id}\`.`).catch(() => { })
+                    }
+
+                    if (currentStatusName === 'refunded') {
+                        await bot.sendMessage(deal.channel_id, `↩️ **DEAL REFUNDED**\nFunds returned to buyer for Deal \`${deal.deal_id}\`.`).catch(() => { })
+                    }
+
+                    if (currentStatusName === 'resolved') {
+                        await bot.sendMessage(deal.channel_id, `⚖️ **DISPUTE RESOLVED**\nArbitrator has settled Deal \`${deal.deal_id}\`.`).catch(() => { })
+                    }
+                }
+            } catch (err) {
+                console.error(`[Poll] Error checking deal ${deal.deal_id}:`, err)
+            }
+        }
+    } catch (error) {
+        console.error('[Poll] Loop error:', error)
+    }
+}
+
+// Start polling every 10 seconds
+setInterval(pollDeals, 10000)
 
 const app = bot.start()
 
