@@ -579,6 +579,22 @@ app.post('/api/deal/:dealId/status', async (c) => {
             }
         }
 
+        // Notification logic for Resolved
+        if (status === 'resolved' && updatedDeal) {
+            console.log(`[StatusUpdate] Sending RESOLVED notification for ${dealId} to channel ${updatedDeal.channel_id}`)
+            try {
+                await bot.sendMessage(
+                    updatedDeal.channel_id,
+                    `⚖️ **DISPUTE RESOLVED**\\n\\n` +
+                    `Deal \\`${ dealId }\\` has been settled by the arbitrator.\\n` +
+                `The funds have been distributed according to the ruling.`
+                )
+                console.log(`[StatusUpdate] Resolved notification sent successfully.`)
+            } catch (err) {
+                console.error('Failed to send resolved notification:', err)
+            }
+        }
+
         return c.json({ success: true, deal: updatedDeal })
     } catch (error) {
         console.error('API error:', error)
