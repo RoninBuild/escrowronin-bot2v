@@ -19,13 +19,13 @@ const commands = [
         options: [
             {
                 name: 'seller',
-                description: 'Seller wallet/ENS/@user',
+                description: 'Seller (Receives funds)',
                 type: 3,
                 required: true,
             },
             {
                 name: 'buyer',
-                description: 'Buyer wallet/ENS/@user',
+                description: 'Buyer (Pays funds)',
                 type: 3,
                 required: true,
             },

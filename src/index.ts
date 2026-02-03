@@ -24,16 +24,17 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
 bot.onSlashCommand('help', async (handler, { channelId }) => {
     await handler.sendMessage(
         channelId,
-        '🚀 `/app` - Launch dashboard\n' +
-        '🤝 `/escrow_create <seller> <buyer> <description> <deadline> <amount>` - Create OTC deal\n' +
-        '📊 `/escrow_info <address>` - Get deal details\n' +
-        '📈 `/escrow_stats` - View global statistics\n' +
-        '❓ `/help` - Show this help message\n\n' +
+        '🚀 **RoninOTC Bot Help**\n\n' +
+        '**Commands:**\n' +
+        '`/app` - Open Dashboard\n' +
+        '`/escrow_create <seller> <buyer> <description> <deadline> <amount>`\n' +
+        '`/escrow_info <contract_address>`\n' +
+        '`/escrow_stats`\n\n' +
+        '**Roles:**\n' +
+        '🟢 **Buyer**: PAYS the funds (USDC).\n' +
+        '🔴 **Seller**: RECEIVES the funds (Assets/Services).\n\n' +
         '**Example:**\n' +
-        '`/escrow_create 0xSeller 0xBuyer "Logo design" 48h 100`\n\n' +
-        '**About:**\n' +
-        'Trustless OTC escrow on Base.\n' +
-        `Factory: ${config.factoryAddress}`,
+        '`/escrow_create @Seller @Buyer "Service" 24h 100`',
     )
 })
 
@@ -121,34 +122,63 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         let mentionIdx = 0
 
-        // Robust Address Resolver Helper
-        // Prioritizes Mentions if the input is not a raw valid address.
+        // Robust Address Resolver Helper with Fuzzy Matching
         const resolveArgToAddress = async (arg: string): Promise<string | null> => {
-            // 1. If strict valid address, use it directly (override mentions)
+            // 1. If strict valid address, use it directly.
             if (isAddress(arg)) return arg
 
-            // 2. If we have a pending mention, assume this arg corresponds to it (e.g. pill text "0x...")
-            if (mentions && mentions[mentionIdx]) {
-                const matchedAddress = mentions[mentionIdx].userId
-                mentionIdx++ // Consume mention
-                return matchedAddress
+            // 2. Check if the arg passed is a shortened address string (e.g. "0x123...abc")
+            const isShortened = arg.startsWith('0x') && arg.includes('...')
+
+            if (mentions && mentions.length > 0) {
+                // Strategy A: Fuzzy match against specific mention if arg looks like part of it
+                if (isShortened) {
+                    const start = arg.split('...')[0]
+                    const end = arg.split('...')[1]
+                    const matchIdx = mentions.findIndex(m =>
+                        m.userId.toLowerCase().startsWith(start.toLowerCase()) &&
+                        (end ? m.userId.toLowerCase().endsWith(end.toLowerCase()) : true)
+                    )
+
+                    if (matchIdx !== -1) {
+                        // Found a match!
+                        const matched = mentions[matchIdx]
+                        // We don't remove it from array to avoid complex state, but we prioritize it.
+                        // But if we have multiple args, we must be careful.
+                        // For now, let's just return it. 
+                        // To prevent re-using same mention for both if they are identical text? 
+                        // No, typically manual inputs are distinct.
+                        return matched.userId
+                    }
+                }
+
+                // Strategy B: Positional Match (Fallback)
+                // If the arg is effectively empty (Towns pill behavior potentially) or just a name
+                // AND we haven't consumed this mention index yet.
+                if (mentions[mentionIdx]) {
+                    const matchedAddress = mentions[mentionIdx].userId
+                    mentionIdx++ // Move cursor
+                    return matchedAddress
+                }
             }
 
-            // 3. Fallback: Try ENS or manual resolution
+            // 3. Last Resort: ENS or specific resolution
             return await resolveAddress(arg)
         }
 
         // 1. Resolve Seller
         const sellerAddress = await resolveArgToAddress(sellerInput)
         if (!sellerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve seller address from '${sellerInput}'. Please use a full address, ENS, or @mention.`)
+            await handler.sendMessage(channelId, `❌ **Seller Error**: Could not resolve address from input '${sellerInput}'.\n\n` +
+                `**Tip**: If you are copy-pasting a "pill" (shortened address), it may not work. Please type \`@username\` or paste the **FULL** wallet address.`)
             return
         }
 
         // 2. Resolve Buyer
         const buyerAddress = await resolveArgToAddress(buyerInput)
         if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve buyer address from '${buyerInput}'. Please use a full address, ENS, or @mention.`)
+            await handler.sendMessage(channelId, `❌ **Buyer Error**: Could not resolve address from input '${buyerInput}'.\n\n` +
+                `**Tip**: If you are copy-pasting a "pill" (shortened address), it may not work. Please type \`@username\` or paste the **FULL** wallet address.`)
             return
         }
 
