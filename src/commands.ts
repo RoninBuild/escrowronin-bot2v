@@ -61,18 +61,6 @@ const commands = [
             },
         ],
     },
-    {
-        name: 'arbiter_release',
-        description: 'Resolve a disputed deal (Arbitrator only)',
-        options: [
-            {
-                name: 'deal_id',
-                description: 'The Deal ID (e.g. DEAL-123...)',
-                type: 3,
-                required: true,
-            },
-        ],
-    },
 ] as const
 
 export default commands as any
