@@ -101,4 +101,13 @@ export function getDealsByUser(userAddress: string, role: 'buyer' | 'seller'): D
   return stmt.all(userAddress) as Deal[]
 }
 
+export function getActiveDeals(): Deal[] {
+  // Poll checks for deals that are created/funded but not final.
+  // Also check drafts if we want to auto-detect creation? No, on-chain check needs address.
+  // So only deals with escrow_address.
+  // Ignored statuses: released, refunded, resolved.
+  const stmt = db.query("SELECT * FROM deals WHERE status NOT IN ('released', 'refunded', 'resolved') AND escrow_address IS NOT NULL")
+  return stmt.all() as Deal[]
+}
+
 export default db
