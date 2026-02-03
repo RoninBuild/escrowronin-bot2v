@@ -477,6 +477,7 @@ app.post('/api/deal/:dealId/status', async (c) => {
 
         // Notification logic for Dispute
         if (status === 'disputed' && updatedDeal) {
+            console.log(`[StatusUpdate] Sending DISPUTE notification for ${dealId} to channel ${updatedDeal.channel_id}`)
             try {
                 // @ts-ignore - Assuming bot instance has sendMessage or similar capability
                 await bot.sendMessage(
@@ -486,6 +487,7 @@ app.post('/api/deal/:dealId/status', async (c) => {
                     `Arbitrator: 0xdA50...7698\n\n` +
                     `The protocol arbitrator will review the transaction evidence.`
                 )
+                console.log(`[StatusUpdate] Notification sent successfully.`)
             } catch (err) {
                 console.error('Failed to send dispute notification:', err)
             }
