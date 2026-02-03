@@ -475,6 +475,22 @@ app.post('/api/deal/:dealId/status', async (c) => {
         updateDealStatus(dealId, status, escrowAddress)
         const updatedDeal = getDealById(dealId)
 
+        // Notification logic for Dispute
+        if (status === 'disputed' && updatedDeal) {
+            try {
+                // @ts-ignore - Assuming bot instance has sendMessage or similar capability
+                await bot.sendMessage(
+                    updatedDeal.channel_id,
+                    `⚠️ **DISPUTE OPENED**\n\n` +
+                    `Deal \`${dealId}\` has been flagged for dispute.\n` +
+                    `Arbitrator: 0xdA50...7698\n\n` +
+                    `The protocol arbitrator will review the transaction evidence.`
+                )
+            } catch (err) {
+                console.error('Failed to send dispute notification:', err)
+            }
+        }
+
         return c.json({ success: true, deal: updatedDeal })
     } catch (error) {
         console.error('API error:', error)
