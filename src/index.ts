@@ -96,12 +96,15 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         // Parsing logic: <target> <description...> <amount>
         if (args.length < 3) {
             await handler.sendMessage(channelId,
-                '❌ Invalid format. Use:\n\n' +
-                '`/escrow_create <buyer> <description> <amount>`\n\n' +
+                '❌ **Invalid format**\n\n' +
+                '**Usage:**\n' +
+                '`/escrow_create <seller> <buyer> <description> <deadline> <amount>`\n\n' +
+                '**Roles:**\n' +
+                '🔴 **Seller**: Receives funds\n' +
+                '🟢 **Buyer**: Pays funds\n\n' +
                 '**Examples:**\n' +
-                '`/escrow_create @alice Logo design 100`\n' +
-                '`/escrow_create 0x123...abc Contract work 500`\n' +
-                '`/escrow_create vitalik.eth Audit services 1000`'
+                '`/escrow_create @Seller @Buyer "Logo design" 48h 100`\n' +
+                '`/escrow_create 0xSeller 0xBuyer "Audit" 1w 500`'
             )
             return
         }
