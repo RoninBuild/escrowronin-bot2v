@@ -93,8 +93,14 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
     const { channelId, args, mentions, userId, spaceId } = context
 
     try {
-        // Parsing logic: <target> <description...> <amount>
-        if (args.length < 3) {
+        // Create clean args by filtering empty strings/whitespace
+        const cleanArgs = args.filter(a => a && a.trim().length > 0)
+        console.log('Clean Args:', cleanArgs)
+
+        // Parsing logic: <seller> <buyer> <description> <deadline> <amount>
+        // Min length 4: Seller, Buyer, Description, Amount (Default Deadline)
+
+        if (cleanArgs.length < 3) {
             await handler.sendMessage(channelId,
                 '❌ **Invalid format**\n\n' +
                 '**Usage:**\n' +
@@ -109,16 +115,33 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
-        if (args.length < 5) {
-            await handler.sendMessage(channelId, '❌ Usage: `/escrow_create <seller> <buyer> <description> <deadline> <amount>`\nExample: `/escrow_create 0xSeller 0xBuyer "Logo design" 48h 100`')
+        if (cleanArgs.length < 4) {
+            await handler.sendMessage(channelId, '❌ **Missing arguments**.\nRequired: Seller, Buyer, Description, Amount.\nExample: `/escrow_create @Seller @Buyer "Task" 100`')
             return
         }
 
-        const sellerInput = args[0] || ''
-        const buyerInput = args[1] || ''
-        const deadlineInput = args[3] || ''
-        const amountInput = args[args.length - 1] || ''
-        const descriptionInput = args[2] || ''
+        const sellerInput = cleanArgs[0]
+        const buyerInput = cleanArgs[1]
+
+        // Handling optional deadline
+        // If 5 args: S, B, Desc, Deadline, Amt
+        // If 4 args: S, B, Desc, Amt (Default deadline)
+
+        let descriptionInput = ''
+        let deadlineInput = ''
+        let amountInput = ''
+
+        if (cleanArgs.length >= 5) {
+            descriptionInput = cleanArgs[2]
+            deadlineInput = cleanArgs[3]
+            amountInput = cleanArgs[cleanArgs.length - 1]
+        } else {
+            // Length is 4
+            descriptionInput = cleanArgs[2]
+            amountInput = cleanArgs[3] // Last one is amount
+            // Check if 3rd arg matches deadline format just in case usage was scrambled? 
+            // Better stick to positional convention. S, B, D, A.
+        }
 
         console.log('Inputs:', { sellerInput, buyerInput, descriptionInput, deadlineInput, amountInput })
         console.log('Mentions:', mentions)
