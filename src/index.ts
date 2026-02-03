@@ -119,42 +119,36 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         console.log('Inputs:', { sellerInput, buyerInput, descriptionInput, deadlineInput, amountInput })
         console.log('Mentions:', mentions)
 
-        let sellerAddress: string | null = null
-        let buyerAddress: string | null = null
         let mentionIdx = 0
 
-        // Helper to check if input looks like a shortened address or mention
-        const isMentionOrShortened = (val: string) => !val || val.includes('...') || val.includes('@') || val.includes('<')
+        // Robust Address Resolver Helper
+        // Prioritizes Mentions if the input is not a raw valid address.
+        const resolveArgToAddress = async (arg: string): Promise<string | null> => {
+            // 1. If strict valid address, use it directly (override mentions)
+            if (isAddress(arg)) return arg
 
-        // 1. Resolve Seller Address
-        if (isMentionOrShortened(sellerInput)) {
+            // 2. If we have a pending mention, assume this arg corresponds to it (e.g. pill text "0x...")
             if (mentions && mentions[mentionIdx]) {
-                sellerAddress = mentions[mentionIdx].userId
-                mentionIdx++
+                const matchedAddress = mentions[mentionIdx].userId
+                mentionIdx++ // Consume mention
+                return matchedAddress
             }
-        }
-        if (!sellerAddress && sellerInput) {
-            sellerAddress = await resolveAddress(sellerInput)
+
+            // 3. Fallback: Try ENS or manual resolution
+            return await resolveAddress(arg)
         }
 
+        // 1. Resolve Seller
+        const sellerAddress = await resolveArgToAddress(sellerInput)
         if (!sellerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve seller address.`)
+            await handler.sendMessage(channelId, `❌ Could not resolve seller address from '${sellerInput}'. Please use a full address, ENS, or @mention.`)
             return
         }
 
-        // 2. Resolve Buyer Address
-        if (isMentionOrShortened(buyerInput)) {
-            if (mentions && mentions[mentionIdx]) {
-                buyerAddress = mentions[mentionIdx].userId
-                mentionIdx++
-            }
-        }
-        if (!buyerAddress && buyerInput) {
-            buyerAddress = await resolveAddress(buyerInput)
-        }
-
+        // 2. Resolve Buyer
+        const buyerAddress = await resolveArgToAddress(buyerInput)
         if (!buyerAddress) {
-            await handler.sendMessage(channelId, `❌ Could not resolve buyer address.`)
+            await handler.sendMessage(channelId, `❌ Could not resolve buyer address from '${buyerInput}'. Please use a full address, ENS, or @mention.`)
             return
         }
 
@@ -245,22 +239,22 @@ bot.onSlashCommand('escrow_info', async (handler, { channelId, args, mentions })
         }
 
         // Try to resolve (Mentions/ENS)
+        // Try to resolve (Mentions/ENS)
         let address = input
-        const isMentionOrShortened = (val: string) => !val || val.includes('...') || val.includes('@') || val.includes('<')
 
-        if (isMentionOrShortened(input)) {
-            if (mentions && mentions.length > 0) {
-                address = mentions[0].userId
-            }
+        // Check mentions first if input is not a raw address
+        if (!isAddress(input) && mentions && mentions.length > 0) {
+            address = mentions[0].userId
         }
 
+        // Check ENS/Resolution if still not an address
         if (!isAddress(address)) {
             const resolved = await resolveAddress(address)
             if (resolved) address = resolved
         }
 
         if (!isAddress(address)) {
-            await handler.sendMessage(channelId, '❌ Invalid address or resolution failed')
+            await handler.sendMessage(channelId, `❌ Invalid address '${input}' or resolution failed.`)
             return
         }
 
