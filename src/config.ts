@@ -1,4 +1,5 @@
 export const config = {
+  // Final sync: 2026-02-03T21:00:00Z
   rpcUrl: process.env.BASE_RPC_URL || 'https://mainnet.base.org',
   chainId: parseInt(process.env.CHAIN_ID || '8453'),
   factoryAddress: (process.env.ESCROW_FACTORY_ADDRESS || '0xFeDD8d8DCa1d09d517407C8F548B611656Cb2363') as `0x${string}`,
