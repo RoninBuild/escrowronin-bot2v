@@ -439,22 +439,25 @@ console.log(`🪙 USDC: ${config.usdcAddress}`)
 // Polling Notification System
 async function pollDeals() {
     try {
-        const activeDeals = getActiveDeals()
+        console.log(`[Poll] Checking ${activeDeals.length} active deals...`)
         for (const deal of activeDeals) {
             if (!deal.escrow_address) continue
 
             try {
+                console.log(`[Poll] Checking deal ${deal.deal_id} at ${deal.escrow_address}`)
                 const info = await getDealInfo(deal.escrow_address as `0x${string}`)
                 const currentStatusName = getStatusName(info.status).toLowerCase()
 
-                // Map chain status to DB/App status
-                // Chain: CREATED, FUNDED, RELEASED, REFUNDED, DISPUTED, RESOLVED
-                // DB: created, funded, released, refunded, disputed, resolved
-
                 if (deal.status !== currentStatusName) {
-                    console.log(`[Poll] Status change detected for ${deal.deal_id}: ${deal.status} -> ${currentStatusName}`)
+                    console.log(`[Poll] STATUS CHANGE detected for ${deal.deal_id}: ${deal.status} -> ${currentStatusName}`)
 
                     updateDealStatus(deal.deal_id, currentStatusName as any, deal.escrow_address)
+
+                    // Check if bot.sendMessage exists
+                    if (typeof (bot as any).sendMessage !== 'function') {
+                        console.error(`[Poll] CRITICAL: bot.sendMessage is NOT a function! type: ${typeof (bot as any).sendMessage}`)
+                        continue
+                    }
 
                     // Notify on specific transitions
                     if (currentStatusName === 'disputed') {
@@ -571,17 +574,25 @@ app.post('/api/deal/:dealId/status', async (c) => {
         updateDealStatus(dealId, status, escrowAddress)
         const updatedDeal = getDealById(dealId)
 
+        console.log(`[API] Status update request for ${dealId} to ${status}. Current DB status: ${updatedDeal?.status}`)
+
+        if (typeof (bot as any).sendMessage !== 'function') {
+            console.error(`[API] CRITICAL: bot.sendMessage is NOT a function!`)
+        }
+
         // Notification logic for Dispute
         if (status === 'disputed' && updatedDeal) {
-            console.log(`[StatusUpdate] Sending DISPUTE notification for ${dealId} to channel ${updatedDeal.channel_id}`)
+            console.log(`[StatusUpdate] Sending DISPUTE notification for ${dealId} to channel ${updatedDeal.channel_id} in town ${updatedDeal.town_id}`)
             try {
-                // @ts-ignore - Assuming bot instance has sendMessage or similar capability
+                // @ts-ignore
                 await bot.sendMessage(
                     updatedDeal.channel_id,
                     `⚠️ **DISPUTE OPENED**\n\n` +
                     `Deal \`${dealId}\` has been flagged for dispute.\n` +
                     `Arbitrator: 0xdA50...7698\n\n` +
-                    `The protocol arbitrator will review the transaction evidence.`
+                    `The protocol arbitrator will review the transaction evidence.`,
+                    // @ts-ignore - Some Towns Bot versions might need spaceId/townId
+                    { spaceId: updatedDeal.town_id }
                 )
                 console.log(`[StatusUpdate] Notification sent successfully.`)
             } catch (err) {
@@ -604,7 +615,8 @@ app.post('/api/deal/:dealId/status', async (c) => {
                     }
                 }
 
-                await bot.sendMessage(updatedDeal.channel_id, msg)
+                // @ts-ignore
+                await bot.sendMessage(updatedDeal.channel_id, msg, { spaceId: updatedDeal.town_id })
                 console.log(`[StatusUpdate] Resolved notification sent successfully.`)
             } catch (err) {
                 console.error('Failed to send resolved notification:', err)
