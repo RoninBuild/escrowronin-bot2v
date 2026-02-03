@@ -40,6 +40,24 @@ export async function getDealInfo(escrowAddress: `0x${string}`) {
   }
 }
 
+export async function getDisputeWinner(escrowAddress: `0x${string}`) {
+  try {
+    const logs = await publicClient.getContractEvents({
+      address: escrowAddress,
+      abi: escrowAbi,
+      eventName: 'DisputeResolved',
+      fromBlock: 0n,
+    })
+
+    if (logs.length > 0) {
+      return logs[0].args.winner
+    }
+  } catch (error) {
+    console.error('Error fetching dispute winner:', error)
+  }
+  return null
+}
+
 export enum EscrowStatus {
   CREATED = 0,
   FUNDED = 1,

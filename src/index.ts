@@ -2,7 +2,7 @@ import { makeTownsBot } from '@towns-protocol/bot'
 import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
-import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName } from './blockchain'
+import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName, getDisputeWinner } from './blockchain'
 import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDeals } from './database'
 import { serveStatic } from 'hono/bun'
 import fs from 'node:fs/promises'
@@ -477,7 +477,17 @@ async function pollDeals() {
                     }
 
                     if (currentStatusName === 'resolved') {
-                        await bot.sendMessage(deal.channel_id, `⚖️ **DISPUTE RESOLVED**\nArbitrator has settled Deal \`${deal.deal_id}\`.`).catch(() => { })
+                        const winner = await getDisputeWinner(deal.escrow_address as `0x${string}`)
+                        let msg = `⚖️ **DISPUTE RESOLVED**\n\nArbitrator has settled Deal \`${deal.deal_id}\`.`
+
+                        if (winner) {
+                            if (winner.toLowerCase() === deal.seller_address.toLowerCase()) {
+                                msg += `\n\n✅ **Winner:** Seller\n💰 Funds transferred to seller.`
+                            } else if (winner.toLowerCase() === deal.buyer_address.toLowerCase()) {
+                                msg += `\n\n✅ **Winner:** Buyer\n💰 Funds returned to buyer.`
+                            }
+                        }
+                        await bot.sendMessage(deal.channel_id, msg).catch(() => { })
                     }
                 }
             } catch (err) {
@@ -579,13 +589,20 @@ app.post('/api/deal/:dealId/status', async (c) => {
             }
         }
 
-        // Notification logic for Resolved
         if (status === 'resolved' && updatedDeal) {
             console.log(`[StatusUpdate] Sending RESOLVED notification for ${dealId} to channel ${updatedDeal.channel_id}`)
             try {
-                const msg = `⚖️ **DISPUTE RESOLVED**\n\n` +
-                    `Deal \`${dealId}\` has been settled by the arbitrator.\n` +
-                    `The funds have been distributed according to the ruling.`
+                const winner = await getDisputeWinner(escrowAddress as `0x${string}`)
+                let msg = `⚖️ **DISPUTE RESOLVED**\n\n` +
+                    `Deal \`${dealId}\` has been settled by the arbitrator.`
+
+                if (winner) {
+                    if (winner.toLowerCase() === updatedDeal.seller_address.toLowerCase()) {
+                        msg += `\n\n✅ **Winner:** Seller\n💰 Funds transferred to seller.`
+                    } else if (winner.toLowerCase() === updatedDeal.buyer_address.toLowerCase()) {
+                        msg += `\n\n✅ **Winner:** Buyer\n💰 Funds returned to buyer.`
+                    }
+                }
 
                 await bot.sendMessage(updatedDeal.channel_id, msg)
                 console.log(`[StatusUpdate] Resolved notification sent successfully.`)
