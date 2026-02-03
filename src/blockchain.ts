@@ -1,20 +1,23 @@
 import { createPublicClient, http } from 'viem'
 import { base } from 'viem/chains'
 import { config } from './config'
-import factoryAbi from './abi/EscrowFactory.json'
-import escrowAbi from './abi/Escrow.json'
+import factoryArtifact from './abi/EscrowFactory.json'
+import escrowArtifact from './abi/Escrow.json'
+
+export const factoryAbi = factoryArtifact.abi
+export const escrowAbi = escrowArtifact.abi
 
 export const publicClient = createPublicClient({
   chain: base,
   transport: http(config.rpcUrl),
 })
 
-export { factoryAbi, escrowAbi }
 
 export async function getEscrowCount() {
   const count = await publicClient.readContract({
     address: config.factoryAddress,
-    abi: factoryAbi,
+    abi: factoryAbi as any,
+
     functionName: 'getEscrowCount',
   })
   return count
@@ -23,7 +26,8 @@ export async function getEscrowCount() {
 export async function getDealInfo(escrowAddress: `0x${string}`) {
   const info = await publicClient.readContract({
     address: escrowAddress,
-    abi: escrowAbi,
+    abi: escrowAbi as any,
+
     functionName: 'getDealInfo',
   })
 
@@ -44,7 +48,8 @@ export async function getDisputeWinner(escrowAddress: `0x${string}`) {
   try {
     const logs = await publicClient.getContractEvents({
       address: escrowAddress,
-      abi: escrowAbi,
+      abi: escrowAbi as any,
+
       eventName: 'DisputeResolved',
       fromBlock: 0n,
     })
