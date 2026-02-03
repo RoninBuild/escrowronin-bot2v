@@ -284,6 +284,36 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 })
 
 
+// /arbiter_release
+bot.onSlashCommand('arbiter_release', async (handler, { channelId, args }) => {
+    try {
+        const dealIdArg = args[0]
+        if (!dealIdArg) {
+            await handler.sendMessage(channelId, `❌ Please provide Deal ID`)
+            return
+        }
+
+        const deal = getDealById(dealIdArg)
+
+        if (!deal) {
+            await handler.sendMessage(channelId, `❌ Deal not found: ${dealIdArg}`)
+            return
+        }
+
+        const appUrl = process.env.BASE_URL || 'https://roninotc-app.vercel.app'
+        const link = `${appUrl}/deal/${dealIdArg}`
+
+        await handler.sendMessage(channelId,
+            `👮 **Arbitrator Console**\n\n` +
+            `To resolve Deal \`${dealIdArg}\`, please open the secure dashboard and connect the Arbitrator Wallet (0xdA50...).\n\n` +
+            `👉 [Open Resolution Panel](${link})`
+        )
+    } catch (error) {
+        console.error('Arbiter command error:', error)
+        await handler.sendMessage(channelId, '❌ Error processing command')
+    }
+})
+
 // /escrow_info
 bot.onSlashCommand('escrow_info', async (handler, { channelId, args, mentions }) => {
 
