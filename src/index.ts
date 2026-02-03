@@ -587,7 +587,7 @@ app.post('/api/deal/:dealId/status', async (c) => {
                     updatedDeal.channel_id,
                     `⚖️ **DISPUTE RESOLVED**\\n\\n` +
                     `Deal \\`${ dealId }\\` has been settled by the arbitrator.\\n` +
-                `The funds have been distributed according to the ruling.`
+                    \`The funds have been distributed according to the ruling.`
                 )
                 console.log(`[StatusUpdate] Resolved notification sent successfully.`)
             } catch (err) {
