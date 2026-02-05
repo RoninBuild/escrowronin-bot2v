@@ -823,17 +823,37 @@ async function sendTxInteraction(
 
     console.log(`[TX Request] Payload:`, JSON.stringify(payload, null, 2))
 
-    try {
-        console.log(`[TX Request] Attempting bot.sendInteractionRequest...`)
-        // Log method availability for debugging
-        console.log(`[TX Request] bot.sendInteractionRequest type: ${typeof (bot as any).sendInteractionRequest}`)
-        console.log(`[TX Request] bot.sendMessage type: ${typeof (bot as any).sendMessage}`)
+    async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, name: string): Promise<T> {
+        return Promise.race([
+            promise,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${name} took > ${timeoutMs}ms`)), timeoutMs))
+        ]);
+    }
 
-        const result = await (bot as any).sendInteractionRequest(channelId, payload)
-        console.log(`[TX Request] sendInteractionRequest SUCCESS:`, result)
-        return result
+    try {
+        console.log(`[TX Request] Attempting interaction send via bot methods...`)
+
+        // 1. Try sendInteractionRequest if it exists
+        if (typeof (bot as any).sendInteractionRequest === 'function') {
+            console.log(`[TX Request] Using bot.sendInteractionRequest with 5s timeout`)
+            try {
+                return await withTimeout((bot as any).sendInteractionRequest(channelId, payload), 5000, 'sendInteractionRequest')
+            } catch (err) {
+                console.warn(`[TX Request] bot.sendInteractionRequest failed or timed out, trying fallback...`, err)
+            }
+        }
+
+        // 2. Fallback to sendMessage with attachments (Interaction is just an attachment)
+        if (typeof (bot as any).sendMessage === 'function') {
+            console.log(`[TX Request] Fallback to bot.sendMessage with attachment`)
+            return await withTimeout((bot as any).sendMessage(channelId, '', {
+                attachments: [payload]
+            }), 5000, 'sendMessage')
+        }
+
+        throw new Error('Bot has no method to send interaction or message (proactive call failed)')
     } catch (e) {
-        console.error(`[TX Request] sendInteractionRequest FAILED:`, e)
+        console.error(`[TX Request] Send FAILED:`, e)
         throw e
     }
 }
