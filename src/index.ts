@@ -266,6 +266,8 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         const finalSellerAddress = await resolveToSmartWallet(sellerAddress)
         const finalBuyerAddress = await resolveToSmartWallet(buyerAddress)
 
+        console.log('Resolved Smart Wallets:', { finalSellerAddress, finalBuyerAddress })
+
         const deal = createDeal({
             deal_id: dealId,
             seller_address: finalSellerAddress,
@@ -295,12 +297,12 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
             `**Deal ID:** \`${dealId}\`\n\n` +
-            `**Seller:** ${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)}\n` +
-            `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n` +
+            `**Seller Account:** \`${finalSellerAddress.slice(0, 6)}...${finalSellerAddress.slice(-4)}\` (${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)})\n` +
+            `**Buyer Account:** \`${finalBuyerAddress.slice(0, 6)}...${finalBuyerAddress.slice(-4)}\` (${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)})\n` +
             `**Amount:** \`${amount} USDC\`\n` +
             `**Description:** ${descriptionInput}\n` +
             `**Deadline:** ${deadlineInput || '48h'}\n\n` +
-            `✅ **Unified Wallet Active**: This deal is linked to your Towns account. Funds in your Towns wallet will be used for payment.`,
+            `✅ **Unified Wallet Active**: Funds will be used from your Smart Account address shown above.`,
             {
                 attachments: [
                     {
