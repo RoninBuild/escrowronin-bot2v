@@ -9,8 +9,6 @@ import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDea
 import { serveStatic } from 'hono/bun'
 import fs from 'node:fs/promises'
 
-let globalHandler: any = null
-
 
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
@@ -27,7 +25,6 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
 
 // Help command
 bot.onSlashCommand('help', async (handler, { channelId }) => {
-    globalHandler = handler
     await handler.sendMessage(
         channelId,
         '🚀 **RoninOTC Bot Help**\n\n' +
@@ -46,7 +43,6 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
 
 
 bot.onSlashCommand('app', async (handler, { channelId }) => {
-    globalHandler = handler
     const miniappUrl = config.appUrl
     await handler.sendMessage(
         channelId,
@@ -95,7 +91,6 @@ async function resolveAddress(input: string): Promise<string | null> {
 
 // /escrow_create
 bot.onSlashCommand('escrow_create', async (handler, context) => {
-    globalHandler = handler
     console.log('=== ESCROW_CREATE called ===')
 
     const { channelId, args, mentions, userId, spaceId } = context
@@ -810,14 +805,9 @@ app.post('/api/request-transaction', async (c) => {
                 return c.json({ error: 'Invalid action' }, 400)
         }
 
-        if (!globalHandler) {
-            console.error('[TX Request] Global handler not ready')
-            return c.json({ error: 'Bot handler not ready yet. Please send a command to the bot first.' }, 503)
-        }
-
         // Send Transaction Interaction Request to chat
         // @ts-ignore - Towns SDK types may not be fully up to date
-        await globalHandler.sendInteractionRequest(channelId, {
+        await (bot as any).sendInteractionRequest(channelId, {
             type: 'transaction',
             id: interactionId,
             title,
@@ -843,7 +833,6 @@ app.post('/api/request-transaction', async (c) => {
 
 // Handle transaction responses
 bot.onInteractionResponse(async (handler, event) => {
-    globalHandler = handler
     const { response, channelId } = event
 
     if (response.payload.content?.case !== 'transaction') return
