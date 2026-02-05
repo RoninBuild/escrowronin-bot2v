@@ -816,6 +816,7 @@ app.post('/api/request-transaction', async (c) => {
             id: interactionId,
             title,
             subtitle,
+            description: subtitle, // Some versions might need description
             tx: {
                 chainId: '8453', // Base
                 to: toAddress,
@@ -825,7 +826,8 @@ app.post('/api/request-transaction', async (c) => {
             recipient: cleanRecipient // Only include if valid address
         }
 
-
+        console.log(`[TX Request] Payload TO: ${toAddress}`)
+        console.log(`[TX Request] Payload Title: ${title}`)
         console.log('[TX Request] Sending payload:', JSON.stringify(payload, null, 2))
         console.log('[TX Request] Target channelId:', channelId)
 
