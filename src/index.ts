@@ -827,7 +827,6 @@ async function sendTxInteraction(
         id: interactionId,
         title,
         subtitle,
-        description,
         tx: {
             chainId: '8453',
             to: toAddress,
@@ -847,29 +846,22 @@ async function sendTxInteraction(
     }
 
     try {
-        console.log(`[TX Request] Attempting interaction send via bot methods...`)
+        console.log(`[TX Request] Attempting interaction send via bot.sendInteractionRequest...`)
 
-        // 1. Try sendInteractionRequest if it exists
         if (typeof (bot as any).sendInteractionRequest === 'function') {
-            console.log(`[TX Request] Using bot.sendInteractionRequest with 5s timeout`)
             try {
-                return await withTimeout((bot as any).sendInteractionRequest(channelId, payload), 5000, 'sendInteractionRequest')
+                const result = await withTimeout((bot as any).sendInteractionRequest(channelId, payload), 5000, 'sendInteractionRequest')
+                console.log(`[TX Request] Interaction sent successfully:`, result)
+                return result
             } catch (err) {
-                console.warn(`[TX Request] bot.sendInteractionRequest failed or timed out, trying fallback...`, err)
+                console.error(`[TX Request] bot.sendInteractionRequest FAILED:`, err)
+                throw err
             }
+        } else {
+            throw new Error('bot.sendInteractionRequest is not a function')
         }
-
-        // 2. Fallback to sendMessage with attachments (Interaction is just an attachment)
-        if (typeof (bot as any).sendMessage === 'function') {
-            console.log(`[TX Request] Fallback to bot.sendMessage with attachment`)
-            return await withTimeout((bot as any).sendMessage(channelId, '', {
-                attachments: [payload]
-            }), 5000, 'sendMessage')
-        }
-
-        throw new Error('Bot has no method to send interaction or message (proactive call failed)')
     } catch (e) {
-        console.error(`[TX Request] Send FAILED:`, e)
+        console.error(`[TX Request] Final error:`, e)
         throw e
     }
 }
