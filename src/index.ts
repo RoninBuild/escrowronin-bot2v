@@ -1,5 +1,6 @@
 // Towns Bot Native Integration
 // Last Updated: 2026-02-05
+process.env.HOSTNAME = '0.0.0.0'
 import { Bot, makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
 import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog, isAddress, getAddress } from 'viem'
 import { normalize } from 'viem/ens'
@@ -11,7 +12,6 @@ import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getSt
 import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDeals } from './database'
 import { serveStatic } from 'hono/bun'
 import { cors } from 'hono/cors'
-import { serve } from 'bun'
 import fs from 'node:fs/promises'
 
 
@@ -1020,12 +1020,4 @@ bot.onInteractionResponse(async (handler, event) => {
 
 console.log(`🔗 Transaction interaction system ready`)
 
-
-const server = serve({
-    port: config.port,
-    fetch: app.fetch,
-})
-
-console.log(`🚀 Server running on port ${server.port}`)
-
-export default app
+export { app }
