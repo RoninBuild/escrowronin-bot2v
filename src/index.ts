@@ -886,8 +886,14 @@ bot.onInteractionResponse(async (handler, event) => {
             }
         } else if (interaction.action === 'fund') {
             updateDealStatus(interaction.dealId, 'funded')
+        } else if (interaction.action === 'release') {
+            updateDealStatus(interaction.dealId, 'released')
+        } else if (interaction.action === 'dispute') {
+            updateDealStatus(interaction.dealId, 'disputed')
+        } else if (interaction.action === 'resolve') {
+            updateDealStatus(interaction.dealId, 'resolved')
         } else if (interaction.action === 'approve') {
-            // Just normal status tracking if needed
+            // Allowance update handled by polling
         }
 
         console.log(`[TX Response] Deal ${interaction.dealId} action ${interaction.action} completed`)
