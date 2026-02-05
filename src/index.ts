@@ -9,6 +9,9 @@ import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDea
 import { serveStatic } from 'hono/bun'
 import fs from 'node:fs/promises'
 
+let globalHandler: any = null
+
+
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
     baseRpcUrl: config.rpcUrl,
@@ -24,6 +27,7 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
 
 // Help command
 bot.onSlashCommand('help', async (handler, { channelId }) => {
+    globalHandler = handler
     await handler.sendMessage(
         channelId,
         '🚀 **RoninOTC Bot Help**\n\n' +
@@ -42,6 +46,7 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
 
 
 bot.onSlashCommand('app', async (handler, { channelId }) => {
+    globalHandler = handler
     const miniappUrl = config.appUrl
     await handler.sendMessage(
         channelId,
@@ -412,8 +417,9 @@ bot.onSlashCommand('escrow_info', async (handler, { channelId, args, mentions })
 })
 
 // /escrow_stats
-bot.onSlashCommand('escrow_stats', async (handler, context) => {
-    const { channelId } = context
+bot.onSlashCommand('escrow_create', async (handler, event) => {
+    globalHandler = handler
+    const { args, mentions, channelId, userId, spaceId } = event
 
     try {
         const count = await getEscrowCount()
@@ -687,6 +693,7 @@ console.log(`📡 API ready at /api/*`)
 // ===== TRANSACTION INTERACTION SYSTEM (Sweepy-style) =====
 
 // Store pending interactions
+// Store pending interactions
 const pendingInteractions = new Map<string, {
     dealId: string
     action: 'create' | 'approve' | 'fund' | 'release' | 'dispute' | 'resolve'
@@ -802,9 +809,14 @@ app.post('/api/request-transaction', async (c) => {
                 return c.json({ error: 'Invalid action' }, 400)
         }
 
+        if (!globalHandler) {
+            console.error('[TX Request] Global handler not ready')
+            return c.json({ error: 'Bot handler not ready yet. Please send a command to the bot first.' }, 503)
+        }
+
         // Send Transaction Interaction Request to chat
         // @ts-ignore - Towns SDK types may not be fully up to date
-        await (bot as any).sendInteractionRequest(channelId, {
+        await globalHandler.sendInteractionRequest(channelId, {
             type: 'transaction',
             id: interactionId,
             title,
@@ -830,6 +842,7 @@ app.post('/api/request-transaction', async (c) => {
 
 // Handle transaction responses
 bot.onInteractionResponse(async (handler, event) => {
+    globalHandler = handler
     const { response, channelId } = event
 
     if (response.payload.content?.case !== 'transaction') return
