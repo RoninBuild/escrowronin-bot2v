@@ -708,6 +708,7 @@ app.post('/api/request-transaction', async (c) => {
         let txData: string
         let title: string
         let subtitle: string
+        let description: string = ''
         let toAddress: `0x${string}`
 
         const USDC_ADDRESS: `0x${string}` = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // Base USDC
@@ -737,7 +738,8 @@ app.post('/api/request-transaction', async (c) => {
                 })
                 toAddress = config.factoryAddress as `0x${string}`
                 title = '🚀 Deploy Escrow'
-                subtitle = `Create secure escrow for ${deal.amount} USDC`
+                subtitle = `Create secure escrow instance for ${deal.amount} USDC`
+                description = `Deploying a new RoninOTC Escrow contract via Factory (0x...${config.factoryAddress.slice(-4)}) for Deal ${deal.deal_id}.`
                 break
 
             case 'approve':
@@ -757,18 +759,20 @@ app.post('/api/request-transaction', async (c) => {
                 })
                 toAddress = USDC_ADDRESS
                 title = '💰 Approve USDC'
-                subtitle = `Approve ${deal.amount} USDC for escrow`
+                subtitle = `Authorize escrow to handle ${deal.amount} USDC`
+                description = `Allowing the Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}) to pull USDC for funding.`
                 break
 
             case 'fund':
                 txData = encodeFunctionData({
                     abi: escrowAbi,
-                    functionName: 'deposit',
+                    functionName: 'fund',
                     args: []
                 })
                 toAddress = ESCROW_ADDRESS
                 title = '🔒 Fund Escrow'
-                subtitle = `Deposit ${deal.amount} USDC into escrow`
+                subtitle = `Deposit ${deal.amount} USDC into agreement`
+                description = `Transferring ${deal.amount} USDC from your wallet into the secure Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}).`
                 break
 
             case 'release':
@@ -779,31 +783,34 @@ app.post('/api/request-transaction', async (c) => {
                 })
                 toAddress = ESCROW_ADDRESS
                 title = '✅ Release Funds'
-                subtitle = `Release ${deal.amount} USDC to seller`
+                subtitle = `Send ${deal.amount} USDC to seller`
+                description = `Completing the deal and releasing funds to 0x...${deal.seller_address.slice(-4)}.`
                 break
 
             case 'dispute':
                 txData = encodeFunctionData({
                     abi: escrowAbi,
-                    functionName: 'dispute',
+                    functionName: 'openDispute',
                     args: []
                 })
                 toAddress = ESCROW_ADDRESS
                 title = '⚠️ Raise Dispute'
                 subtitle = 'Escalate this deal to arbitration'
+                description = `Opening a dispute for the Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}). The arbitrator (0x...${config.arbitratorAddress.slice(-4)}) will decide the outcome.`
                 break
 
             case 'resolve':
-                // For resolve, we'd need to know who the winner is. 
-                // Currently just setting to current user as placeholder if they are arbiter.
+                // For resolve, we'd need to know if paying to seller or buyer
+                // Placeholder: pay to seller if called (arbiter flow)
                 txData = encodeFunctionData({
                     abi: escrowAbi,
                     functionName: 'resolve',
-                    args: [userId as `0x${string}`]
+                    args: [true] // _payToSeller = true
                 })
                 toAddress = ESCROW_ADDRESS
                 title = '⚖️ Resolve Dispute'
-                subtitle = 'Arbiter decision'
+                subtitle = 'Arbiter final decision'
+                description = `Final settlement of the dispute in favor of the Seller.`
                 break
 
             default:
@@ -816,7 +823,7 @@ app.post('/api/request-transaction', async (c) => {
             id: interactionId,
             title,
             subtitle,
-            description: subtitle, // Some versions might need description
+            description,
             tx: {
                 chainId: '8453', // Base
                 to: toAddress,
