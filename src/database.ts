@@ -135,4 +135,16 @@ export function getActiveDeals(): Deal[] {
   return stmt.all() as Deal[]
 }
 
+export function syncUserProfile(userId: string, displayName: string, pfpUrl: string) {
+  const stmt = db.prepare(`
+    UPDATE deals
+    SET seller_display_name = CASE WHEN seller_user_id = ? THEN ? ELSE seller_display_name END,
+        seller_pfp_url = CASE WHEN seller_user_id = ? THEN ? ELSE seller_pfp_url END,
+        buyer_display_name = CASE WHEN buyer_user_id = ? THEN ? ELSE buyer_display_name END,
+        buyer_pfp_url = CASE WHEN buyer_user_id = ? THEN ? ELSE buyer_pfp_url END
+    WHERE seller_user_id = ? OR buyer_user_id = ?
+  `)
+  return stmt.run(userId, displayName, userId, pfpUrl, userId, displayName, userId, pfpUrl, userId, userId)
+}
+
 export default db

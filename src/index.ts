@@ -5,7 +5,7 @@ import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName, getDisputeWinner } from './blockchain'
-import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDeals } from './database'
+import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDeals, syncUserProfile } from './database'
 import { serveStatic } from 'hono/bun'
 import fs from 'node:fs/promises'
 
@@ -659,6 +659,21 @@ app.post('/api/deal/:dealId/status', async (c) => {
     }
 })
 
+app.post('/api/user/sync-profile', async (c) => {
+    try {
+        const { userId, displayName, pfpUrl } = await c.req.json()
+        if (!userId) return c.json({ error: 'userId is required' }, 400)
+
+        console.log(`[Sync] Updating profile for ${userId}: ${displayName}`)
+        syncUserProfile(userId, displayName || '', pfpUrl || '')
+
+        return c.json({ success: true })
+    } catch (error) {
+        console.error('Sync error:', error)
+        return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    }
+})
+
 app.get('/api/health', (c) => {
     return c.json({
         status: 'ok',
@@ -789,7 +804,7 @@ app.post('/api/request-transaction', async (c) => {
 
         // Send Transaction Interaction Request to chat
         // @ts-ignore - Towns SDK types may not be fully up to date
-        await handler.sendInteractionRequest(channelId, {
+        await (bot as any).sendInteractionRequest(channelId, {
             type: 'transaction',
             id: interactionId,
             title,
