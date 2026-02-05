@@ -221,9 +221,8 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             return
         }
 
+        // 3. Deadline and ID
         const dealId = `DEAL-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-
-        // 3. Parse Deadline (simple: h, d, w)
         let deadlineSecs = 48 * 3600 // Default 48h
         if (deadlineInput) {
             const match = deadlineInput.match(/^(\d+)([hdw])$/i)
@@ -237,10 +236,37 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         }
         const deadlineTimestamp = Math.floor(Date.now() / 1000) + deadlineSecs
 
+        // 4. Resolve Profiles and Smart Wallets
+        const sellerMention = mentions.find(m => m.userId.toLowerCase() === sellerAddress.toLowerCase())
+        const buyerMention = mentions.find(m => m.userId.toLowerCase() === buyerAddress.toLowerCase())
+
+        // Resolve real smart wallet addresses if they are Towns user IDs
+        const resolveToSmartWallet = async (addr: string) => {
+            if (isAddress(addr)) return addr
+            try {
+                // @ts-ignore - Towns SDK types may vary
+                const sw = await getSmartAccountFromUserId(bot, { userId: addr as `0x${string}` })
+                return sw || addr
+            } catch (e) {
+                return addr
+            }
+        }
+
+        const finalSellerAddress = await resolveToSmartWallet(sellerAddress)
+        const finalBuyerAddress = await resolveToSmartWallet(buyerAddress)
+
         const deal = createDeal({
             deal_id: dealId,
-            seller_address: sellerAddress,
-            buyer_address: buyerAddress,
+            seller_address: finalSellerAddress,
+            seller_user_id: sellerAddress,
+            seller_username: '', // Mentions only have displayName
+            seller_display_name: sellerMention?.displayName,
+            seller_pfp_url: '',
+            buyer_address: finalBuyerAddress,
+            buyer_user_id: buyerAddress,
+            buyer_username: '',
+            buyer_display_name: buyerMention?.displayName,
+            buyer_pfp_url: '',
             amount: amount.toString(),
             token: 'USDC',
             description: descriptionInput,
@@ -646,7 +672,7 @@ console.log(`📡 API ready at /api/*`)
 // Store pending interactions
 const pendingInteractions = new Map<string, {
     dealId: string
-    action: 'approve' | 'fund' | 'release' | 'dispute' | 'resolve'
+    action: 'create' | 'approve' | 'fund' | 'release' | 'dispute' | 'resolve'
     userId: string
     channelId: string
 }>()
@@ -676,6 +702,24 @@ app.post('/api/request-transaction', async (c) => {
         const ESCROW_ADDRESS: `0x${string}` = (deal.escrow_address || config.factoryAddress) as `0x${string}`
 
         switch (action) {
+            case 'create':
+                txData = encodeFunctionData({
+                    abi: factoryAbi,
+                    functionName: 'createEscrow',
+                    args: [
+                        deal.seller_address as `0x${string}`,
+                        USDC_ADDRESS,
+                        parseUnits(deal.amount, 6),
+                        BigInt(deal.deadline),
+                        config.arbitratorAddress as `0x${string}`,
+                        keccak256(toHex(deal.deal_id))
+                    ]
+                })
+                toAddress = config.factoryAddress as `0x${string}`
+                title = '🚀 Deploy Escrow'
+                subtitle = `Create secure escrow for ${deal.amount} USDC`
+                break
+
             case 'approve':
                 txData = encodeFunctionData({
                     abi: [{
