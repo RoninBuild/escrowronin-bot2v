@@ -270,13 +270,13 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
 
         const deal = createDeal({
             deal_id: dealId,
-            seller_address: finalSellerAddress,
-            seller_user_id: sellerAddress,
+            seller_address: finalSellerAddress, // Always F17 (Smart Account)
+            seller_user_id: sellerAddress,      // Always 063 (Identity ID)
             seller_username: '', // Mentions only have displayName
             seller_display_name: sellerMention?.displayName,
             seller_pfp_url: (sellerMention as any)?.profileImageUrl || (sellerMention as any)?.pfpUrl || '',
-            buyer_address: finalBuyerAddress,
-            buyer_user_id: buyerAddress,
+            buyer_address: finalBuyerAddress,   // Always F17 (Smart Account)
+            buyer_user_id: buyerAddress,        // Always 063 (Identity ID)
             buyer_username: '',
             buyer_display_name: buyerMention?.displayName,
             buyer_pfp_url: (buyerMention as any)?.profileImageUrl || (buyerMention as any)?.pfpUrl || '',
@@ -297,8 +297,8 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
             `**Deal ID:** \`${dealId}\`\n\n` +
-            `**Seller Account:** \`${finalSellerAddress.slice(0, 6)}...${finalSellerAddress.slice(-4)}\` (${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)})\n` +
-            `**Buyer Account:** \`${finalBuyerAddress.slice(0, 6)}...${finalBuyerAddress.slice(-4)}\` (${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)})\n` +
+            `**Seller Account:** \`${finalSellerAddress.slice(0, 6)}...${finalSellerAddress.slice(-4)}\` (ID: \`${sellerAddress.slice(0, 6)}...${sellerAddress.slice(-4)}\`)\n` +
+            `**Buyer Account:** \`${finalBuyerAddress.slice(0, 6)}...${finalBuyerAddress.slice(-4)}\` (ID: \`${buyerAddress.slice(0, 6)}...${buyerAddress.slice(-4)}\`)\n` +
             `**Amount:** \`${amount} USDC\`\n` +
             `**Description:** ${descriptionInput}\n` +
             `**Deadline:** ${deadlineInput || '48h'}\n\n` +
