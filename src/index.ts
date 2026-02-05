@@ -1,7 +1,7 @@
 // Towns Bot Native Integration
 // Last Updated: 2026-02-05
 import { Bot, makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
-import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog, isAddress } from 'viem'
+import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog, isAddress, getAddress } from 'viem'
 import { normalize } from 'viem/ens'
 import { mainnet } from 'viem/chains'
 import { createPublicClient, http } from 'viem'
@@ -726,7 +726,7 @@ async function sendTxInteraction(
     // Validate recipient - MUST be a hex address for the Bot SDK
     let cleanRecipient: `0x${string}` | undefined = undefined
     if (userId && isAddress(userId)) {
-        cleanRecipient = userId as `0x${string}`
+        cleanRecipient = getAddress(userId)
     }
 
     switch (action) {
@@ -735,11 +735,11 @@ async function sendTxInteraction(
                 abi: factoryAbi,
                 functionName: 'createEscrow',
                 args: [
-                    deal.seller_address as `0x${string}`,
-                    USDC_ADDRESS,
+                    getAddress(deal.seller_address),
+                    getAddress(USDC_ADDRESS),
                     parseUnits(deal.amount, 6),
                     BigInt(deal.deadline),
-                    config.arbitratorAddress as `0x${string}`,
+                    getAddress(config.arbitratorAddress),
                     keccak256(toHex(deal.deal_id))
                 ]
             })
@@ -762,7 +762,7 @@ async function sendTxInteraction(
                     outputs: [{ type: 'bool' }]
                 }],
                 functionName: 'approve',
-                args: [ESCROW_ADDRESS, parseUnits(deal.amount, 6)]
+                args: [getAddress(ESCROW_ADDRESS), parseUnits(deal.amount, 6)]
             })
             toAddress = USDC_ADDRESS
             title = '💰 Approve USDC'
@@ -829,7 +829,7 @@ async function sendTxInteraction(
         subtitle,
         tx: {
             chainId: '8453',
-            to: toAddress,
+            to: getAddress(toAddress),
             value: '0',
             data: txData,
         },
