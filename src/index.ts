@@ -821,8 +821,21 @@ async function sendTxInteraction(
         recipient: cleanRecipient
     }
 
-    console.log(`[TX Request] Sent ${action} for deal ${deal.deal_id}`)
-    return await bot.sendInteractionRequest(channelId, payload)
+    console.log(`[TX Request] Payload:`, JSON.stringify(payload, null, 2))
+
+    try {
+        console.log(`[TX Request] Attempting bot.sendInteractionRequest...`)
+        // Log method availability for debugging
+        console.log(`[TX Request] bot.sendInteractionRequest type: ${typeof (bot as any).sendInteractionRequest}`)
+        console.log(`[TX Request] bot.sendMessage type: ${typeof (bot as any).sendMessage}`)
+
+        const result = await (bot as any).sendInteractionRequest(channelId, payload)
+        console.log(`[TX Request] sendInteractionRequest SUCCESS:`, result)
+        return result
+    } catch (e) {
+        console.error(`[TX Request] sendInteractionRequest FAILED:`, e)
+        throw e
+    }
 }
 
 // API endpoint for mini-app to request transactions
@@ -838,8 +851,10 @@ app.post('/api/request-transaction', async (c) => {
         }
 
         try {
+            console.log(`[API] Calling sendTxInteraction for ${action}...`)
             const result = await sendTxInteraction(channelId, deal, action, userId)
-            const interactionId = `tx-${dealId}-${action}-${Date.now()}` // Approximate for logging
+            console.log(`[API] sendTxInteraction result:`, result ? 'OK' : 'NULL')
+            const interactionId = `tx-${dealId}-${action}-${Date.now()}`
             return c.json({ success: true, interactionId })
         } catch (error) {
             console.error('[TX Request] Error:', error)
