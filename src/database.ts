@@ -65,10 +65,10 @@ export function createDeal(deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>)
     deal.description,
     deal.deadline,
     deal.status,
-    deal.escrow_address,
+    deal.escrow_address ?? null,
     deal.town_id,
     deal.channel_id,
-    deal.message_id,
+    deal.message_id ?? null,
     now,
     now
   )
@@ -92,7 +92,7 @@ export function updateDealStatus(dealId: string, status: Deal['status'], escrowA
     SET status = ?, escrow_address = ?, updated_at = ?
     WHERE deal_id = ?
   `)
-  return stmt.run(status, escrowAddress, Date.now(), dealId)
+  return stmt.run(status, escrowAddress ?? null, Date.now(), dealId)
 }
 
 export function getDealsByUser(userAddress: string, role: 'buyer' | 'seller'): Deal[] {
