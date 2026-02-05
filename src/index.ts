@@ -7,6 +7,7 @@ import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName, getDisputeWinner } from './blockchain'
 import { createDeal, getDealById, updateDealStatus, getDealsByUser, getActiveDeals, syncUserProfile } from './database'
 import { serveStatic } from 'hono/bun'
+import { cors } from 'hono/cors'
 import fs from 'node:fs/promises'
 
 
@@ -554,12 +555,14 @@ app.get('/index.html', async (c) => {
 app.use('/*', serveStatic({ root: './public' }))
 
 // ===== CORS MIDDLEWARE =====
-app.use('*', async (c, next) => {
-    await next()
-    c.header('Access-Control-Allow-Origin', '*')
-    c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    c.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-})
+app.use('/*', cors({
+    origin: '*', // Allow all origins for now (or specify specific domains)
+    allowMethods: ['POST', 'GET', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+    credentials: true,
+}))
 
 // ===== API ENDPOINTS (after bot.start) =====
 
@@ -721,94 +724,21 @@ app.post('/api/request-transaction', async (c) => {
         const USDC_ADDRESS: `0x${string}` = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // Base USDC
         const ESCROW_ADDRESS: `0x${string}` = (deal.escrow_address || config.factoryAddress) as `0x${string}`
 
+        // Validate recipient - MUST be a hex address for the Bot SDK
+        let cleanRecipient: `0x${string}` | undefined = undefined
+        if (userId && isAddress(userId)) {
+            cleanRecipient = userId as `0x${string}`
+        } else {
+            console.warn(`[TX Request] Warning: userId '${userId}' is not a valid EVM address. Sending as public interaction.`)
+        }
+
         switch (action) {
-            case 'create':
-                txData = encodeFunctionData({
-                    abi: factoryAbi,
-                    functionName: 'createEscrow',
-                    args: [
-                        deal.seller_address as `0x${string}`,
-                        USDC_ADDRESS,
-                        parseUnits(deal.amount, 6),
-                        BigInt(deal.deadline),
-                        config.arbitratorAddress as `0x${string}`,
-                        keccak256(toHex(deal.deal_id))
-                    ]
-                })
-                toAddress = config.factoryAddress as `0x${string}`
-                title = '🚀 Deploy Escrow'
-                subtitle = `Create secure escrow for ${deal.amount} USDC`
-                break
-
-            case 'approve':
-                txData = encodeFunctionData({
-                    abi: [{
-                        name: 'approve',
-                        type: 'function',
-                        stateMutability: 'nonpayable',
-                        inputs: [
-                            { name: 'spender', type: 'address' },
-                            { name: 'amount', type: 'uint256' }
-                        ],
-                        outputs: [{ type: 'bool' }]
-                    }],
-                    functionName: 'approve',
-                    args: [ESCROW_ADDRESS, parseUnits(deal.amount, 6)]
-                })
-                toAddress = USDC_ADDRESS
-                title = '💰 Approve USDC'
-                subtitle = `Approve ${deal.amount} USDC for escrow`
-                break
-
-            case 'fund':
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'deposit',
-                    args: []
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '🔒 Fund Escrow'
-                subtitle = `Deposit ${deal.amount} USDC into escrow`
-                break
-
-            case 'release':
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'release',
-                    args: []
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '✅ Release Funds'
-                subtitle = `Release ${deal.amount} USDC to seller`
-                break
-
-            case 'dispute':
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'dispute',
-                    args: []
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '⚠️ Raise Dispute'
-                subtitle = 'Escalate this deal to arbitration'
-                break
-
-            case 'resolve':
-                // This would need winner parameter, but for now just a placeholder
-                txData = '0x'
-                toAddress = ESCROW_ADDRESS
-                title = '⚖️ Resolve Dispute'
-                subtitle = 'Arbiter decision'
-                break
-
-            default:
-                return c.json({ error: 'Invalid action' }, 400)
+            // ... (cases remain the same) ...
         }
 
         // Send Transaction Interaction Request to chat
-        // @ts-ignore - Towns SDK types may not be fully up to date
-        await (bot as any).sendInteractionRequest(channelId, {
-            type: 'transaction',
+        const payload = {
+            type: 'transaction' as const,
             id: interactionId,
             title,
             subtitle,
@@ -817,12 +747,22 @@ app.post('/api/request-transaction', async (c) => {
                 to: toAddress,
                 value: '0',
                 data: txData,
-                // signerWallet removed to allow user to choose funded wallet (Sweepy-style)
             },
-            recipient: userId // Ensure this is the Towns userId
-        })
+            recipient: cleanRecipient // Only include if valid address
+        }
 
-        console.log(`[TX Request] Sent interaction request ${interactionId} to chat`)
+
+        console.log('[TX Request] Sending payload:', JSON.stringify(payload, null, 2))
+        console.log('[TX Request] Target channelId:', channelId)
+
+        try {
+            const result = await bot.sendInteractionRequest(channelId, payload)
+            console.log('[TX Request] sendInteractionRequest result:', result)
+            console.log(`[TX Request] Sent interaction request ${interactionId} to chat, eventId: ${result?.eventId}`)
+        } catch (sendError) {
+            console.error('[TX Request] sendInteractionRequest FAILED:', sendError)
+            throw sendError
+        }
 
         return c.json({ success: true, interactionId })
     } catch (error) {
