@@ -22,7 +22,7 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     },
 })
 
-let globalHandler: any = null
+
 
 // ===== BOT COMMANDS =====
 
@@ -417,7 +417,6 @@ bot.onSlashCommand('escrow_info', async (handler, { channelId, args, mentions })
 
 // /escrow_stats
 bot.onSlashCommand('escrow_stats', async (handler, event) => {
-    globalHandler = handler
     const { args, mentions, channelId, userId, spaceId } = event
 
     try {
@@ -691,7 +690,6 @@ const pendingInteractions = new Map<string, {
 }>()
 
 async function sendTxInteraction(
-    handler: any,
     channelId: string,
     deal: any,
     action: TransactionAction,
@@ -824,7 +822,7 @@ async function sendTxInteraction(
     }
 
     console.log(`[TX Request] Sent ${action} for deal ${deal.deal_id}`)
-    return await handler.sendInteractionRequest(channelId, payload)
+    return await bot.sendInteractionRequest(channelId, payload)
 }
 
 // API endpoint for mini-app to request transactions
@@ -840,7 +838,7 @@ app.post('/api/request-transaction', async (c) => {
         }
 
         try {
-            const result = await sendTxInteraction(globalHandler, channelId, deal, action, userId)
+            const result = await sendTxInteraction(channelId, deal, action, userId)
             const interactionId = `tx-${dealId}-${action}-${Date.now()}` // Approximate for logging
             return c.json({ success: true, interactionId })
         } catch (error) {
@@ -921,7 +919,6 @@ bot.onInteractionResponse(async (handler, event) => {
                         setTimeout(async () => {
                             try {
                                 await sendTxInteraction(
-                                    handler,
                                     channelId,
                                     deal,
                                     'approve',
