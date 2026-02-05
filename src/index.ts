@@ -922,7 +922,7 @@ bot.onInteractionResponse(async (handler, event) => {
             `[View on BaseScan](https://basescan.org/tx/${tx.txHash})`
         )
 
-        // Special handling for 'create' action: wait for receipt and auto-trigger 'approve'
+        // Special handling for sequential flows
         if (interaction.action === 'create') {
             try {
                 console.log(`[Auto-Approve] Waiting for receipt for tx: ${tx.txHash}`)
@@ -930,7 +930,6 @@ bot.onInteractionResponse(async (handler, event) => {
                     hash: tx.txHash as `0x${string}`
                 })
 
-                // Find EscrowCreated event
                 const log = receipt.logs.find(l => {
                     try {
                         const decoded = decodeEventLog({
@@ -952,23 +951,14 @@ bot.onInteractionResponse(async (handler, event) => {
                     const escrowAddress = decoded.args.escrowAddress
                     console.log(`[Auto-Approve] Extracted escrow address: ${escrowAddress}`)
 
-                    // Update database
                     updateDealStatus(interaction.dealId, 'created', escrowAddress)
 
-                    // Fetch updated deal info for auto-approve
                     const deal = getDealById(interaction.dealId)
                     if (deal) {
                         console.log(`[Auto-Approve] Triggering 'approve' for Buyer: ${deal.buyer_address}`)
-                        // Wait a bit to ensure DB sync if needed, though local is instant
                         setTimeout(async () => {
                             try {
-                                await sendTxInteraction(
-                                    channelId,
-                                    deal,
-                                    'approve',
-                                    deal.buyer_user_id || deal.buyer_address
-                                )
-                                console.log(`[Auto-Approve] Sent 'approve' interaction for deal ${deal.deal_id}`)
+                                await sendTxInteraction(channelId, deal, 'approve', deal.buyer_user_id || deal.buyer_address)
                                 await handler.sendMessage(channelId, `👉 **Next Step:** Automated "Approve USDC" request sent to Buyer.`)
                             } catch (e) {
                                 console.error(`[Auto-Approve] Failed to send auto-approve:`, e)
@@ -977,7 +967,38 @@ bot.onInteractionResponse(async (handler, event) => {
                     }
                 }
             } catch (e) {
-                console.error(`[Auto-Approve] Sequential flow failed:`, e)
+                console.error(`[Auto-Approve] Create flow failed:`, e)
+            }
+        } else if (interaction.action === 'approve') {
+            // After Approve, automatically trigger Fund
+            try {
+                const deal = getDealById(interaction.dealId)
+                if (deal) {
+                    console.log(`[Auto-Fund] Triggering 'fund' for Buyer: ${deal.buyer_address}`)
+                    setTimeout(async () => {
+                        try {
+                            await sendTxInteraction(channelId, deal, 'fund', deal.buyer_user_id || deal.buyer_address)
+                            await handler.sendMessage(channelId, `👉 **Next Step:** USDC Approved! Automated "Deposit Funds" request sent to Buyer.`)
+                        } catch (e) {
+                            console.error(`[Auto-Fund] Failed to send auto-fund:`, e)
+                        }
+                    }, 2000)
+                }
+            } catch (e) {
+                console.error(`[Auto-Fund] Approve flow failed:`, e)
+            }
+        } else if (interaction.action === 'fund') {
+            // After Fund, update DB and send final instructions
+            try {
+                updateDealStatus(interaction.dealId, 'funded')
+                await handler.sendMessage(
+                    channelId,
+                    `🎉 **Funds Deposited!**\n\n` +
+                    `The escrow is now fully funded and secured on-chain.\n\n` +
+                    `👉 **Next Step:** Return to the App to **Release Funds** (Seller) or **Raise Dispute** (Buyer/Seller).`
+                )
+            } catch (e) {
+                console.error(`[Final-Instruction] Fund flow failed:`, e)
             }
         }
 
