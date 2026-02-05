@@ -809,6 +809,7 @@ app.post('/api/request-transaction', async (c) => {
         const body = await c.req.json()
         const { dealId, action, userId, channelId } = body
         console.log(`[API POST] Params:`, JSON.stringify(body))
+        console.log(`[API POST] Active Factory Address: ${config.factoryAddress}`)
 
         const deal = getDealById(dealId)
         if (!deal) {
