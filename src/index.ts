@@ -541,6 +541,10 @@ setInterval(pollDeals, 10000)
 
 const app = bot.start()
 
+// Introspection for debugging
+console.log(`[Bot Info] Keys:`, Object.keys(bot))
+console.log(`[Bot Info] proto:`, Object.keys(Object.getPrototypeOf(bot)))
+
 // ===== CORS MIDDLEWARE =====
 app.use('/*', cors({
     origin: '*',
