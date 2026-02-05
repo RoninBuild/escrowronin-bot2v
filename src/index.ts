@@ -11,6 +11,7 @@ import { cors } from 'hono/cors'
 import fs from 'node:fs/promises'
 
 
+
 const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SECRET!, {
     commands,
     baseRpcUrl: config.rpcUrl,
@@ -22,7 +23,26 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     },
 })
 
+const app = bot.start()
 
+// ===== CORS MIDDLEWARE (Move to top) =====
+app.use('/*', cors({
+    origin: '*',
+    allowMethods: ['POST', 'GET', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+    credentials: true,
+}))
+
+// ===== CONNECTIVITY TEST =====
+app.get('/api/ping', (c) => {
+    console.log('[API] Ping received')
+    return c.json({ status: 'ok', time: new Date().toISOString() })
+})
+
+// Support for old globalHandler if any stray code still uses it (safety)
+let globalHandler: any = null
 
 // ===== BOT COMMANDS =====
 
@@ -538,7 +558,8 @@ async function pollDeals() {
 // Start polling every 10 seconds
 setInterval(pollDeals, 10000)
 
-const app = bot.start()
+// Bot started log
+console.log(`🤝 RoninOTC bot initialized on port ${config.port}`)
 
 // Helper to serve index.html with injected BASE_URL
 app.get('/index.html', async (c) => {
@@ -555,15 +576,7 @@ app.get('/index.html', async (c) => {
 // Serve static files from public folder (for other assets)
 app.use('/*', serveStatic({ root: './public' }))
 
-// ===== CORS MIDDLEWARE =====
-app.use('/*', cors({
-    origin: '*', // Allow all origins for now (or specify specific domains)
-    allowMethods: ['POST', 'GET', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
-    exposeHeaders: ['Content-Length'],
-    maxAge: 600,
-    credentials: true,
-}))
+
 
 // ===== API ENDPOINTS (after bot.start) =====
 
@@ -860,28 +873,29 @@ async function sendTxInteraction(
 
 // API endpoint for mini-app to request transactions
 app.post('/api/request-transaction', async (c) => {
+    console.log(`[API POST] /api/request-transaction hit at ${new Date().toISOString()}`)
     try {
-        const { dealId, action, userId, channelId, smartWalletAddress } = await c.req.json()
-
-        console.log(`[TX Request] Deal: ${dealId}, Action: ${action}, User: ${userId}`)
+        const body = await c.req.json()
+        const { dealId, action, userId, channelId } = body
+        console.log(`[API POST] Params:`, JSON.stringify(body))
 
         const deal = getDealById(dealId)
         if (!deal) {
+            console.warn(`[API POST] Deal not found: ${dealId}`)
             return c.json({ error: 'Deal not found' }, 404)
         }
 
         try {
-            console.log(`[API] Calling sendTxInteraction for ${action}...`)
+            console.log(`[API POST] Triggering interaction for ${action}...`)
             const result = await sendTxInteraction(channelId, deal, action, userId)
-            console.log(`[API] sendTxInteraction result:`, result ? 'OK' : 'NULL')
-            const interactionId = `tx-${dealId}-${action}-${Date.now()}`
-            return c.json({ success: true, interactionId })
+            console.log(`[API POST] Interaction triggered successfully.`)
+            return c.json({ success: true, result: 'OK' })
         } catch (error) {
-            console.error('[TX Request] Error:', error)
+            console.error('[API POST] Inner Error:', error)
             return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
         }
     } catch (error) {
-        console.error('[TX Request] Wrap Error:', error)
+        console.error('[API POST] Outer Error:', error)
         return c.json({ error: 'Internal server error' }, 500)
     }
 })
