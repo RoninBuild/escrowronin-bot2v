@@ -268,7 +268,7 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
                 attachments: [
                     {
                         type: 'miniapp',
-                        url: miniAppUrl,
+                        url: `${miniAppUrl}?dealId=${dealId}`,
                     }
                 ]
             }
@@ -439,6 +439,7 @@ console.log(`🪙 USDC: ${config.usdcAddress}`)
 // Polling Notification System
 async function pollDeals() {
     try {
+        const activeDeals = getActiveDeals()
         console.log(`[Poll] Checking ${activeDeals.length} active deals...`)
         for (const deal of activeDeals) {
             if (!deal.escrow_address) continue

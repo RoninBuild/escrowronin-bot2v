@@ -29,7 +29,7 @@ export async function getDealInfo(escrowAddress: `0x${string}`) {
     abi: escrowAbi as any,
 
     functionName: 'getDealInfo',
-  })
+  }) as any[]
 
   return {
     buyer: info[0],
@@ -55,7 +55,7 @@ export async function getDisputeWinner(escrowAddress: `0x${string}`) {
     })
 
     if (logs.length > 0) {
-      return logs[0].args.winner
+      return (logs[0] as any).args.winner
     }
   } catch (error) {
     console.error('Error fetching dispute winner:', error)
