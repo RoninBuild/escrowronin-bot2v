@@ -261,12 +261,12 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             seller_user_id: sellerAddress,
             seller_username: '', // Mentions only have displayName
             seller_display_name: sellerMention?.displayName,
-            seller_pfp_url: '',
+            seller_pfp_url: (sellerMention as any)?.profileImageUrl || '',
             buyer_address: finalBuyerAddress,
             buyer_user_id: buyerAddress,
             buyer_username: '',
             buyer_display_name: buyerMention?.displayName,
-            buyer_pfp_url: '',
+            buyer_pfp_url: (buyerMention as any)?.profileImageUrl || '',
             amount: amount.toString(),
             token: 'USDC',
             description: descriptionInput,
@@ -797,9 +797,9 @@ app.post('/api/request-transaction', async (c) => {
                 to: toAddress,
                 value: '0',
                 data: txData,
-                signerWallet: smartWalletAddress // Force Towns Smart Wallet
+                // signerWallet removed to allow user to choose funded wallet (Sweepy-style)
             },
-            recipient: userId
+            recipient: userId // Ensure this is the Towns userId
         })
 
         console.log(`[TX Request] Sent interaction request ${interactionId} to chat`)
