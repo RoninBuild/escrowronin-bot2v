@@ -22,6 +22,8 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     },
 })
 
+let globalHandler: any = null
+
 // ===== BOT COMMANDS =====
 
 // Help command
@@ -720,7 +722,92 @@ app.post('/api/request-transaction', async (c) => {
         }
 
         switch (action) {
-            // ... (cases remain the same) ...
+            case 'create':
+                txData = encodeFunctionData({
+                    abi: factoryAbi,
+                    functionName: 'createEscrow',
+                    args: [
+                        deal.seller_address as `0x${string}`,
+                        USDC_ADDRESS,
+                        parseUnits(deal.amount, 6),
+                        BigInt(deal.deadline),
+                        config.arbitratorAddress as `0x${string}`,
+                        keccak256(toHex(deal.deal_id))
+                    ]
+                })
+                toAddress = config.factoryAddress as `0x${string}`
+                title = '🚀 Deploy Escrow'
+                subtitle = `Create secure escrow for ${deal.amount} USDC`
+                break
+
+            case 'approve':
+                txData = encodeFunctionData({
+                    abi: [{
+                        name: 'approve',
+                        type: 'function',
+                        stateMutability: 'nonpayable',
+                        inputs: [
+                            { name: 'spender', type: 'address' },
+                            { name: 'amount', type: 'uint256' }
+                        ],
+                        outputs: [{ type: 'bool' }]
+                    }],
+                    functionName: 'approve',
+                    args: [ESCROW_ADDRESS, parseUnits(deal.amount, 6)]
+                })
+                toAddress = USDC_ADDRESS
+                title = '💰 Approve USDC'
+                subtitle = `Approve ${deal.amount} USDC for escrow`
+                break
+
+            case 'fund':
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'deposit',
+                    args: []
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '🔒 Fund Escrow'
+                subtitle = `Deposit ${deal.amount} USDC into escrow`
+                break
+
+            case 'release':
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'release',
+                    args: []
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '✅ Release Funds'
+                subtitle = `Release ${deal.amount} USDC to seller`
+                break
+
+            case 'dispute':
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'dispute',
+                    args: []
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '⚠️ Raise Dispute'
+                subtitle = 'Escalate this deal to arbitration'
+                break
+
+            case 'resolve':
+                // For resolve, we'd need to know who the winner is. 
+                // Currently just setting to current user as placeholder if they are arbiter.
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'resolve',
+                    args: [userId as `0x${string}`]
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '⚖️ Resolve Dispute'
+                subtitle = 'Arbiter decision'
+                break
+
+            default:
+                return c.json({ error: 'Invalid action' }, 400)
         }
 
         // Send Transaction Interaction Request to chat
