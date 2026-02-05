@@ -19,13 +19,13 @@ const commands = [
         options: [
             {
                 name: 'seller',
-                description: 'Seller (Receives funds)',
+                description: 'Seller (use @mention)',
                 type: 3,
                 required: true,
             },
             {
                 name: 'buyer',
-                description: 'Buyer (Pays funds)',
+                description: 'Buyer (use @mention)',
                 type: 3,
                 required: true,
             },

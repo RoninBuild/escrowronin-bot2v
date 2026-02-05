@@ -39,6 +39,7 @@ bot.onSlashCommand('help', async (handler, { channelId }) => {
         '**Commands:**\n' +
         '`/app` - Open Dashboard\n' +
         '`/escrow_create <seller> <buyer> <description> <deadline> <amount>`\n' +
+        '   *Note: Always use @mentions for seller and buyer fields.*\n' +
         '`/escrow_info <contract_address>`\n' +
         '`/escrow_stats`\n\n' +
         '**Roles:**\n' +
