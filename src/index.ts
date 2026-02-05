@@ -95,6 +95,7 @@ async function resolveAddress(input: string): Promise<string | null> {
 
 // /escrow_create
 bot.onSlashCommand('escrow_create', async (handler, context) => {
+    globalHandler = handler
     console.log('=== ESCROW_CREATE called ===')
 
     const { channelId, args, mentions, userId, spaceId } = context
@@ -417,7 +418,7 @@ bot.onSlashCommand('escrow_info', async (handler, { channelId, args, mentions })
 })
 
 // /escrow_stats
-bot.onSlashCommand('escrow_create', async (handler, event) => {
+bot.onSlashCommand('escrow_stats', async (handler, event) => {
     globalHandler = handler
     const { args, mentions, channelId, userId, spaceId } = event
 
