@@ -1,4 +1,4 @@
-import { makeTownsBot } from '@towns-protocol/bot'
+import { makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
 import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
@@ -640,5 +640,179 @@ app.get('/api/health', (c) => {
 })
 
 console.log(`📡 API ready at /api/*`)
+
+// ===== TRANSACTION INTERACTION SYSTEM (Sweepy-style) =====
+
+// Store pending interactions
+const pendingInteractions = new Map<string, {
+    dealId: string
+    action: 'approve' | 'fund' | 'release' | 'dispute' | 'resolve'
+    userId: string
+    channelId: string
+}>()
+
+// API endpoint for mini-app to request transactions
+app.post('/api/request-transaction', async (c) => {
+    try {
+        const { dealId, action, userId, channelId, smartWalletAddress } = await c.req.json()
+
+        console.log(`[TX Request] Deal: ${dealId}, Action: ${action}, User: ${userId}`)
+
+        const deal = getDealById(dealId)
+        if (!deal) {
+            return c.json({ error: 'Deal not found' }, 404)
+        }
+
+        const interactionId = `tx-${dealId}-${action}-${Date.now()}`
+        pendingInteractions.set(interactionId, { dealId, action, userId, channelId })
+
+        // Build transaction based on action
+        let txData: string
+        let title: string
+        let subtitle: string
+        let toAddress: `0x${string}`
+
+        const USDC_ADDRESS: `0x${string}` = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // Base USDC
+        const ESCROW_ADDRESS: `0x${string}` = (deal.escrow_address || config.factoryAddress) as `0x${string}`
+
+        switch (action) {
+            case 'approve':
+                txData = encodeFunctionData({
+                    abi: [{
+                        name: 'approve',
+                        type: 'function',
+                        stateMutability: 'nonpayable',
+                        inputs: [
+                            { name: 'spender', type: 'address' },
+                            { name: 'amount', type: 'uint256' }
+                        ],
+                        outputs: [{ type: 'bool' }]
+                    }],
+                    functionName: 'approve',
+                    args: [ESCROW_ADDRESS, parseUnits(deal.amount, 6)]
+                })
+                toAddress = USDC_ADDRESS
+                title = '💰 Approve USDC'
+                subtitle = `Approve ${deal.amount} USDC for escrow`
+                break
+
+            case 'fund':
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'deposit',
+                    args: []
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '🔒 Fund Escrow'
+                subtitle = `Deposit ${deal.amount} USDC into escrow`
+                break
+
+            case 'release':
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'release',
+                    args: []
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '✅ Release Funds'
+                subtitle = `Release ${deal.amount} USDC to seller`
+                break
+
+            case 'dispute':
+                txData = encodeFunctionData({
+                    abi: escrowAbi,
+                    functionName: 'dispute',
+                    args: []
+                })
+                toAddress = ESCROW_ADDRESS
+                title = '⚠️ Raise Dispute'
+                subtitle = 'Escalate this deal to arbitration'
+                break
+
+            case 'resolve':
+                // This would need winner parameter, but for now just a placeholder
+                txData = '0x'
+                toAddress = ESCROW_ADDRESS
+                title = '⚖️ Resolve Dispute'
+                subtitle = 'Arbiter decision'
+                break
+
+            default:
+                return c.json({ error: 'Invalid action' }, 400)
+        }
+
+        // Send Transaction Interaction Request to chat
+        // @ts-ignore - Towns SDK types may not be fully up to date
+        await handler.sendInteractionRequest(channelId, {
+            type: 'transaction',
+            id: interactionId,
+            title,
+            subtitle,
+            tx: {
+                chainId: '8453', // Base
+                to: toAddress,
+                value: '0',
+                data: txData,
+                signerWallet: smartWalletAddress // Force Towns Smart Wallet
+            },
+            recipient: userId
+        })
+
+        console.log(`[TX Request] Sent interaction request ${interactionId} to chat`)
+
+        return c.json({ success: true, interactionId })
+    } catch (error) {
+        console.error('[TX Request] Error:', error)
+        return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    }
+})
+
+// Handle transaction responses
+bot.onInteractionResponse(async (handler, event) => {
+    const { response, channelId } = event
+
+    if (response.payload.content?.case !== 'transaction') return
+
+    const tx = response.payload.content.value as any
+    const interactionId = (response.payload as any).id || tx.requestId
+    const interaction = pendingInteractions.get(interactionId)
+
+    if (!interaction) {
+        console.log(`[TX Response] Unknown interaction: ${interactionId}`)
+        return
+    }
+
+    console.log(`[TX Response] ${interactionId}: ${tx.txHash ? 'SUCCESS' : 'FAILED'}`)
+
+    if (tx.txHash) {
+        // Transaction successful
+        await handler.sendMessage(
+            interaction.channelId,
+            `✅ **Transaction Confirmed!**\n\n` +
+            `Action: **${interaction.action.toUpperCase()}**\n` +
+            `Deal: \`${interaction.dealId}\`\n\n` +
+            `[View on BaseScan](https://basescan.org/tx/${tx.txHash})`
+        )
+
+        // Update deal state based on action
+        // Note: The polling system will pick up the actual on-chain state change
+        console.log(`[TX Response] Deal ${interaction.dealId} action ${interaction.action} completed`)
+
+    } else if (tx.error) {
+        // Transaction failed
+        await handler.sendMessage(
+            interaction.channelId,
+            `❌ **Transaction Failed**\n\n` +
+            `Action: **${interaction.action.toUpperCase()}**\n` +
+            `Error: ${tx.error}\n\n` +
+            `Please try again or contact support.`
+        )
+    }
+
+    pendingInteractions.delete(interactionId)
+})
+
+console.log(`🔗 Transaction interaction system ready`)
+
 
 export default app

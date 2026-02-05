@@ -8,7 +8,15 @@ db.run(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     deal_id TEXT UNIQUE NOT NULL,
     seller_address TEXT NOT NULL,
+    seller_user_id TEXT,
+    seller_username TEXT,
+    seller_display_name TEXT,
+    seller_pfp_url TEXT,
     buyer_address TEXT NOT NULL,
+    buyer_user_id TEXT,
+    buyer_username TEXT,
+    buyer_display_name TEXT,
+    buyer_pfp_url TEXT,
     amount TEXT NOT NULL,
     token TEXT NOT NULL,
     description TEXT NOT NULL,
@@ -32,7 +40,15 @@ export interface Deal {
   id?: number
   deal_id: string
   seller_address: string
+  seller_user_id?: string
+  seller_username?: string
+  seller_display_name?: string
+  seller_pfp_url?: string
   buyer_address: string
+  buyer_user_id?: string
+  buyer_username?: string
+  buyer_display_name?: string
+  buyer_pfp_url?: string
   amount: string
   token: string
   description: string
@@ -50,16 +66,25 @@ export function createDeal(deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>)
   const now = Date.now()
   const stmt = db.prepare(`
     INSERT INTO deals (
-      deal_id, seller_address, buyer_address, amount, token,
-      description, deadline, status, escrow_address, town_id,
+      deal_id, seller_address, seller_user_id, seller_username, seller_display_name, seller_pfp_url,
+      buyer_address, buyer_user_id, buyer_username, buyer_display_name, buyer_pfp_url,
+      amount, token, description, deadline, status, escrow_address, town_id,
       channel_id, message_id, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   stmt.run(
     deal.deal_id,
     deal.seller_address,
+    deal.seller_user_id ?? null,
+    deal.seller_username ?? null,
+    deal.seller_display_name ?? null,
+    deal.seller_pfp_url ?? null,
     deal.buyer_address,
+    deal.buyer_user_id ?? null,
+    deal.buyer_username ?? null,
+    deal.buyer_display_name ?? null,
+    deal.buyer_pfp_url ?? null,
     deal.amount,
     deal.token,
     deal.description,
