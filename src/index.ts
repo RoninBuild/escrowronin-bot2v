@@ -1,4 +1,6 @@
-import { makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
+// Towns Bot Native Integration
+// Last Updated: 2026-02-05
+import { Bot, makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
 import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
 import commands from './commands'
 import { config } from './config'
@@ -261,12 +263,12 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
             seller_user_id: sellerAddress,
             seller_username: '', // Mentions only have displayName
             seller_display_name: sellerMention?.displayName,
-            seller_pfp_url: (sellerMention as any)?.profileImageUrl || '',
+            seller_pfp_url: (sellerMention as any)?.profileImageUrl || (sellerMention as any)?.pfpUrl || '',
             buyer_address: finalBuyerAddress,
             buyer_user_id: buyerAddress,
             buyer_username: '',
             buyer_display_name: buyerMention?.displayName,
-            buyer_pfp_url: (buyerMention as any)?.profileImageUrl || '',
+            buyer_pfp_url: (buyerMention as any)?.profileImageUrl || (buyerMention as any)?.pfpUrl || '',
             amount: amount.toString(),
             token: 'USDC',
             description: descriptionInput,
