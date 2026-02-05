@@ -175,3 +175,13 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(stats.map((s, i) => `${i+1}. ${s.buyer.slice(0,6)}: ${Number(s.vol)/1e6} USDC`).join('\n'))
 },
 
+
+
+'/refund': async (ctx) => {
+    const [id] = ctx.args
+    const deal = await getDealById(Number(id))
+    if (Date.now()/1000 < deal.deadline) return ctx.reply('Deal not expired yet')
+    const tx = await writeContract({ functionName: 'refundAfterDeadline' })
+    return ctx.reply(`Refunded: ${tx}`)
+},
+
