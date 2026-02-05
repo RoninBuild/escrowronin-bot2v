@@ -1,7 +1,7 @@
 // Towns Bot Native Integration
 // Last Updated: 2026-02-05
 import { Bot, makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
-import { encodeFunctionData, parseUnits, keccak256, toHex } from 'viem'
+import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog } from 'viem'
 import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName, getDisputeWinner } from './blockchain'
@@ -680,14 +680,152 @@ console.log(`📡 API ready at /api/*`)
 
 // ===== TRANSACTION INTERACTION SYSTEM (Sweepy-style) =====
 
-// Store pending interactions
+type TransactionAction = 'create' | 'approve' | 'fund' | 'release' | 'dispute' | 'resolve'
+
 // Store pending interactions
 const pendingInteractions = new Map<string, {
-    dealId: string
-    action: 'create' | 'approve' | 'fund' | 'release' | 'dispute' | 'resolve'
-    userId: string
-    channelId: string
+    dealId: string;
+    action: TransactionAction;
+    userId?: string;
+    channelId: string;
 }>()
+
+async function sendTxInteraction(
+    handler: any,
+    channelId: string,
+    deal: any,
+    action: TransactionAction,
+    userId?: string
+) {
+    const interactionId = `tx-${deal.deal_id}-${action}-${Date.now()}`
+    pendingInteractions.set(interactionId, { dealId: deal.deal_id, action, userId, channelId })
+
+    let txData: string
+    let title: string
+    let subtitle: string
+    let description: string = ''
+    let toAddress: `0x${string}`
+
+    const USDC_ADDRESS: `0x${string}` = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // Base USDC
+    const ESCROW_ADDRESS: `0x${string}` = (deal.escrow_address || config.factoryAddress) as `0x${string}`
+
+    // Validate recipient - MUST be a hex address for the Bot SDK
+    let cleanRecipient: `0x${string}` | undefined = undefined
+    if (userId && isAddress(userId)) {
+        cleanRecipient = userId as `0x${string}`
+    }
+
+    switch (action) {
+        case 'create':
+            txData = encodeFunctionData({
+                abi: factoryAbi,
+                functionName: 'createEscrow',
+                args: [
+                    deal.seller_address as `0x${string}`,
+                    USDC_ADDRESS,
+                    parseUnits(deal.amount, 6),
+                    BigInt(deal.deadline),
+                    config.arbitratorAddress as `0x${string}`,
+                    keccak256(toHex(deal.deal_id))
+                ]
+            })
+            toAddress = config.factoryAddress as `0x${string}`
+            title = '🚀 Deploy Escrow'
+            subtitle = `Create secure escrow instance for ${deal.amount} USDC`
+            description = `Deploying a new RoninOTC Escrow contract via Factory (0x...${config.factoryAddress.slice(-4)}) for Deal ${deal.deal_id}.`
+            break
+
+        case 'approve':
+            txData = encodeFunctionData({
+                abi: [{
+                    name: 'approve',
+                    type: 'function',
+                    stateMutability: 'nonpayable',
+                    inputs: [
+                        { name: 'spender', type: 'address' },
+                        { name: 'amount', type: 'uint256' }
+                    ],
+                    outputs: [{ type: 'bool' }]
+                }],
+                functionName: 'approve',
+                args: [ESCROW_ADDRESS, parseUnits(deal.amount, 6)]
+            })
+            toAddress = USDC_ADDRESS
+            title = '💰 Approve USDC'
+            subtitle = `Authorize escrow to handle ${deal.amount} USDC`
+            description = `Allowing the Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}) to pull USDC for funding.`
+            break
+
+        case 'fund':
+            txData = encodeFunctionData({
+                abi: escrowAbi,
+                functionName: 'fund',
+                args: []
+            })
+            toAddress = ESCROW_ADDRESS
+            title = '🔒 Fund Escrow'
+            subtitle = `Deposit ${deal.amount} USDC into agreement`
+            description = `Transferring ${deal.amount} USDC from your wallet into the secure Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}).`
+            break
+
+        case 'release':
+            txData = encodeFunctionData({
+                abi: escrowAbi,
+                functionName: 'release',
+                args: []
+            })
+            toAddress = ESCROW_ADDRESS
+            title = '✅ Release Funds'
+            subtitle = `Send ${deal.amount} USDC to seller`
+            description = `Completing the deal and releasing funds to 0x...${deal.seller_address.slice(-4)}.`
+            break
+
+        case 'dispute':
+            txData = encodeFunctionData({
+                abi: escrowAbi,
+                functionName: 'openDispute',
+                args: []
+            })
+            toAddress = ESCROW_ADDRESS
+            title = '⚠️ Raise Dispute'
+            subtitle = 'Escalate this deal to arbitration'
+            description = `Opening a dispute for the Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}). The arbitrator (0x...${config.arbitratorAddress.slice(-4)}) will decide the outcome.`
+            break
+
+        case 'resolve':
+            txData = encodeFunctionData({
+                abi: escrowAbi,
+                functionName: 'resolve',
+                args: [true] // _payToSeller = true
+            })
+            toAddress = ESCROW_ADDRESS
+            title = '⚖️ Resolve Dispute'
+            subtitle = 'Arbiter final decision'
+            description = `Final settlement of the dispute in favor of the Seller.`
+            break
+
+        default:
+            throw new Error('Invalid action')
+    }
+
+    const payload = {
+        type: 'transaction' as const,
+        id: interactionId,
+        title,
+        subtitle,
+        description,
+        tx: {
+            chainId: '8453',
+            to: toAddress,
+            value: '0',
+            data: txData,
+        },
+        recipient: cleanRecipient
+    }
+
+    console.log(`[TX Request] Sent ${action} for deal ${deal.deal_id}`)
+    return await handler.sendInteractionRequest(channelId, payload)
+}
 
 // API endpoint for mini-app to request transactions
 app.post('/api/request-transaction', async (c) => {
@@ -701,156 +839,17 @@ app.post('/api/request-transaction', async (c) => {
             return c.json({ error: 'Deal not found' }, 404)
         }
 
-        const interactionId = `tx-${dealId}-${action}-${Date.now()}`
-        pendingInteractions.set(interactionId, { dealId, action, userId, channelId })
-
-        // Build transaction based on action
-        let txData: string
-        let title: string
-        let subtitle: string
-        let description: string = ''
-        let toAddress: `0x${string}`
-
-        const USDC_ADDRESS: `0x${string}` = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // Base USDC
-        const ESCROW_ADDRESS: `0x${string}` = (deal.escrow_address || config.factoryAddress) as `0x${string}`
-
-        // Validate recipient - MUST be a hex address for the Bot SDK
-        let cleanRecipient: `0x${string}` | undefined = undefined
-        if (userId && isAddress(userId)) {
-            cleanRecipient = userId as `0x${string}`
-        } else {
-            console.warn(`[TX Request] Warning: userId '${userId}' is not a valid EVM address. Sending as public interaction.`)
-        }
-
-        switch (action) {
-            case 'create':
-                txData = encodeFunctionData({
-                    abi: factoryAbi,
-                    functionName: 'createEscrow',
-                    args: [
-                        deal.seller_address as `0x${string}`,
-                        USDC_ADDRESS,
-                        parseUnits(deal.amount, 6),
-                        BigInt(deal.deadline),
-                        config.arbitratorAddress as `0x${string}`,
-                        keccak256(toHex(deal.deal_id))
-                    ]
-                })
-                toAddress = config.factoryAddress as `0x${string}`
-                title = '🚀 Deploy Escrow'
-                subtitle = `Create secure escrow instance for ${deal.amount} USDC`
-                description = `Deploying a new RoninOTC Escrow contract via Factory (0x...${config.factoryAddress.slice(-4)}) for Deal ${deal.deal_id}.`
-                break
-
-            case 'approve':
-                txData = encodeFunctionData({
-                    abi: [{
-                        name: 'approve',
-                        type: 'function',
-                        stateMutability: 'nonpayable',
-                        inputs: [
-                            { name: 'spender', type: 'address' },
-                            { name: 'amount', type: 'uint256' }
-                        ],
-                        outputs: [{ type: 'bool' }]
-                    }],
-                    functionName: 'approve',
-                    args: [ESCROW_ADDRESS, parseUnits(deal.amount, 6)]
-                })
-                toAddress = USDC_ADDRESS
-                title = '💰 Approve USDC'
-                subtitle = `Authorize escrow to handle ${deal.amount} USDC`
-                description = `Allowing the Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}) to pull USDC for funding.`
-                break
-
-            case 'fund':
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'fund',
-                    args: []
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '🔒 Fund Escrow'
-                subtitle = `Deposit ${deal.amount} USDC into agreement`
-                description = `Transferring ${deal.amount} USDC from your wallet into the secure Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}).`
-                break
-
-            case 'release':
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'release',
-                    args: []
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '✅ Release Funds'
-                subtitle = `Send ${deal.amount} USDC to seller`
-                description = `Completing the deal and releasing funds to 0x...${deal.seller_address.slice(-4)}.`
-                break
-
-            case 'dispute':
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'openDispute',
-                    args: []
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '⚠️ Raise Dispute'
-                subtitle = 'Escalate this deal to arbitration'
-                description = `Opening a dispute for the Escrow contract (0x...${ESCROW_ADDRESS.slice(-4)}). The arbitrator (0x...${config.arbitratorAddress.slice(-4)}) will decide the outcome.`
-                break
-
-            case 'resolve':
-                // For resolve, we'd need to know if paying to seller or buyer
-                // Placeholder: pay to seller if called (arbiter flow)
-                txData = encodeFunctionData({
-                    abi: escrowAbi,
-                    functionName: 'resolve',
-                    args: [true] // _payToSeller = true
-                })
-                toAddress = ESCROW_ADDRESS
-                title = '⚖️ Resolve Dispute'
-                subtitle = 'Arbiter final decision'
-                description = `Final settlement of the dispute in favor of the Seller.`
-                break
-
-            default:
-                return c.json({ error: 'Invalid action' }, 400)
-        }
-
-        // Send Transaction Interaction Request to chat
-        const payload = {
-            type: 'transaction' as const,
-            id: interactionId,
-            title,
-            subtitle,
-            description,
-            tx: {
-                chainId: '8453', // Base
-                to: toAddress,
-                value: '0',
-                data: txData,
-            },
-            recipient: cleanRecipient // Only include if valid address
-        }
-
-        console.log(`[TX Request] Payload TO: ${toAddress}`)
-        console.log(`[TX Request] Payload Title: ${title}`)
-        console.log('[TX Request] Sending payload:', JSON.stringify(payload, null, 2))
-        console.log('[TX Request] Target channelId:', channelId)
-
         try {
-            const result = await bot.sendInteractionRequest(channelId, payload)
-            console.log('[TX Request] sendInteractionRequest result:', result)
-            console.log(`[TX Request] Sent interaction request ${interactionId} to chat, eventId: ${result?.eventId}`)
-        } catch (sendError) {
-            console.error('[TX Request] sendInteractionRequest FAILED:', sendError)
-            throw sendError
+            const result = await sendTxInteraction(globalHandler, channelId, deal, action, userId)
+            const interactionId = `tx-${dealId}-${action}-${Date.now()}` // Approximate for logging
+            return c.json({ success: true, interactionId })
+        } catch (error) {
+            console.error('[TX Request] Error:', error)
+            return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
         }
-
-        return c.json({ success: true, interactionId })
     } catch (error) {
-        console.error('[TX Request] Error:', error)
-        return c.json({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+        console.error('[TX Request] Wrap Error:', error)
+        return c.json({ error: 'Internal server error' }, 500)
     }
 })
 
@@ -881,10 +880,67 @@ bot.onInteractionResponse(async (handler, event) => {
             `[View on BaseScan](https://basescan.org/tx/${tx.txHash})`
         )
 
-        // Update deal state based on action
-        // Note: The polling system will pick up the actual on-chain state change
-        console.log(`[TX Response] Deal ${interaction.dealId} action ${interaction.action} completed`)
+        // Special handling for 'create' action: wait for receipt and auto-trigger 'approve'
+        if (interaction.action === 'create') {
+            try {
+                console.log(`[Auto-Approve] Waiting for receipt for tx: ${tx.txHash}`)
+                const receipt = await publicClient.waitForTransactionReceipt({
+                    hash: tx.txHash as `0x${string}`
+                })
 
+                // Find EscrowCreated event
+                const log = receipt.logs.find(l => {
+                    try {
+                        const decoded = decodeEventLog({
+                            abi: factoryAbi,
+                            data: l.data,
+                            topics: l.topics,
+                        })
+                        return decoded.eventName === 'EscrowCreated'
+                    } catch { return false }
+                })
+
+                if (log) {
+                    const decoded = decodeEventLog({
+                        abi: factoryAbi,
+                        data: log.data,
+                        topics: log.topics,
+                    }) as any
+
+                    const escrowAddress = decoded.args.escrowAddress
+                    console.log(`[Auto-Approve] Extracted escrow address: ${escrowAddress}`)
+
+                    // Update database
+                    updateDealStatus(interaction.dealId, 'created', escrowAddress)
+
+                    // Fetch updated deal info for auto-approve
+                    const deal = getDealById(interaction.dealId)
+                    if (deal) {
+                        console.log(`[Auto-Approve] Triggering 'approve' for Buyer: ${deal.buyer_address}`)
+                        // Wait a bit to ensure DB sync if needed, though local is instant
+                        setTimeout(async () => {
+                            try {
+                                await sendTxInteraction(
+                                    handler,
+                                    channelId,
+                                    deal,
+                                    'approve',
+                                    deal.buyer_user_id || deal.buyer_address
+                                )
+                                console.log(`[Auto-Approve] Sent 'approve' interaction for deal ${deal.deal_id}`)
+                                await handler.sendMessage(channelId, `👉 **Next Step:** Automated "Approve USDC" request sent to Buyer.`)
+                            } catch (e) {
+                                console.error(`[Auto-Approve] Failed to send auto-approve:`, e)
+                            }
+                        }, 2000)
+                    }
+                }
+            } catch (e) {
+                console.error(`[Auto-Approve] Sequential flow failed:`, e)
+            }
+        }
+
+        console.log(`[TX Response] Deal ${interaction.dealId} action ${interaction.action} completed`)
     } else if (tx.error) {
         // Transaction failed
         await handler.sendMessage(
