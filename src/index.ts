@@ -1,6 +1,5 @@
 // Towns Bot Native Integration
 // Last Updated: 2026-02-05
-process.env.HOSTNAME = '0.0.0.0'
 import { Bot, makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
 import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog, isAddress, getAddress } from 'viem'
 import { normalize } from 'viem/ens'
@@ -249,14 +248,18 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         const buyerMention = mentions.find(m => m.userId.toLowerCase() === buyerAddress.toLowerCase())
 
         // Resolve real smart wallet addresses if they are Towns user IDs
-        const resolveToSmartWallet = async (addr: string) => {
-            if (isAddress(addr)) return addr
+        const resolveToSmartWallet = async (addrOrId: string) => {
             try {
-                // @ts-ignore - Towns SDK types may vary
-                const sw = await getSmartAccountFromUserId(bot, { userId: addr as `0x${string}` })
-                return sw || addr
+                // Always try to resolve Smart Account from the ID/Address first
+                // If it's a full address, getSmartAccountFromUserId still works if it's an Identity ID
+                // @ts-ignore
+                const sw = await getSmartAccountFromUserId(bot, { userId: addrOrId as `0x${string}` })
+                if (sw) return sw
+                // If not resolved to a smart account and it's a valid address, return as is
+                if (isAddress(addrOrId)) return addrOrId
+                return addrOrId
             } catch (e) {
-                return addr
+                return addrOrId
             }
         }
 
@@ -291,13 +294,13 @@ bot.onSlashCommand('escrow_create', async (handler, context) => {
         await handler.sendMessage(
             channelId,
             `**🤝 OTC Deal Created**\n\n` +
-            `**Deal ID:**\n\n\`\`\`\n${dealId}\n\`\`\`\n\n` +
-            `**Seller:** ${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)}\n\n` +
-            `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n\n` +
-            `**Amount:** \`${amount} USDC\`\n\n` +
-            `**Description:** ${descriptionInput}\n\n` +
+            `**Deal ID:** \`${dealId}\`\n\n` +
+            `**Seller:** ${sellerInput.startsWith('0x') ? `\`${sellerInput.slice(0, 6)}...${sellerInput.slice(-4)}\`` : (sellerInput.includes('.') ? sellerInput : `<@${sellerAddress}>`)}\n` +
+            `**Buyer:** ${buyerInput.startsWith('0x') ? `\`${buyerInput.slice(0, 6)}...${buyerInput.slice(-4)}\`` : (buyerInput.includes('.') ? buyerInput : `<@${buyerAddress}>`)}\n` +
+            `**Amount:** \`${amount} USDC\`\n` +
+            `**Description:** ${descriptionInput}\n` +
             `**Deadline:** ${deadlineInput || '48h'}\n\n` +
-            `**Status:** ⏳ Draft (not on-chain yet)`,
+            `✅ **Unified Wallet Active**: This deal is linked to your Towns account. Funds in your Towns wallet will be used for payment.`,
             {
                 attachments: [
                     {
@@ -469,76 +472,6 @@ bot.onReaction(async (handler, { reaction, channelId }) => {
 console.log(`🤝 RoninOTC bot started on port ${config.port}`)
 console.log(`🏭 Factory: ${config.factoryAddress}`)
 console.log(`🪙 USDC: ${config.usdcAddress}`)
-
-// Polling Notification System
-async function pollDeals() {
-    try {
-        const activeDeals = getActiveDeals()
-        console.log(`[Poll] Checking ${activeDeals.length} active deals...`)
-        for (const deal of activeDeals) {
-            if (!deal.escrow_address) continue
-
-            try {
-                console.log(`[Poll] Checking deal ${deal.deal_id} at ${deal.escrow_address}`)
-                const info = await getDealInfo(deal.escrow_address as `0x${string}`)
-                const currentStatusName = getStatusName(info.status).toLowerCase()
-
-                if (deal.status !== currentStatusName) {
-                    console.log(`[Poll] STATUS CHANGE detected for ${deal.deal_id}: ${deal.status} -> ${currentStatusName}`)
-
-                    updateDealStatus(deal.deal_id, currentStatusName as any, deal.escrow_address)
-
-                    // Check if bot.sendMessage exists
-                    if (typeof (bot as any).sendMessage !== 'function') {
-                        console.error(`[Poll] CRITICAL: bot.sendMessage is NOT a function! type: ${typeof (bot as any).sendMessage}`)
-                        continue
-                    }
-
-                    // Notify on specific transitions
-                    if (currentStatusName === 'disputed') {
-                        console.log(`[Poll] Sending DISPUTE notification for ${deal.deal_id}`)
-                        await bot.sendMessage(
-                            deal.channel_id,
-                            `⚠️ **DISPUTE OPENED**\n\n` +
-                            `Deal \`${deal.deal_id}\` has been flagged for dispute.\n` +
-                            `Arbitrator: 0xdA50...7698\n\n` +
-                            `The protocol arbitrator will review the transaction evidence.`
-                        ).catch(e => console.error('Failed to send poll notification:', e))
-                    }
-
-                    if (currentStatusName === 'released') {
-                        await bot.sendMessage(deal.channel_id, `💎 **DEAL COMPLETED**\nFunds released to seller for Deal \`${deal.deal_id}\`.`).catch(() => { })
-                    }
-
-                    if (currentStatusName === 'refunded') {
-                        await bot.sendMessage(deal.channel_id, `↩️ **DEAL REFUNDED**\nFunds returned to buyer for Deal \`${deal.deal_id}\`.`).catch(() => { })
-                    }
-
-                    if (currentStatusName === 'resolved') {
-                        const winner = await getDisputeWinner(deal.escrow_address as `0x${string}`)
-                        let msg = `⚖️ **DISPUTE RESOLVED**\n\nArbitrator has settled Deal \`${deal.deal_id}\`.`
-
-                        if (winner) {
-                            if (winner.toLowerCase() === deal.seller_address.toLowerCase()) {
-                                msg += `\n\n✅ **Winner:** Seller\n💰 Funds transferred to seller.`
-                            } else if (winner.toLowerCase() === deal.buyer_address.toLowerCase()) {
-                                msg += `\n\n✅ **Winner:** Buyer\n💰 Funds returned to buyer.`
-                            }
-                        }
-                        await bot.sendMessage(deal.channel_id, msg).catch(() => { })
-                    }
-                }
-            } catch (err) {
-                console.error(`[Poll] Error checking deal ${deal.deal_id}:`, err)
-            }
-        }
-    } catch (error) {
-        console.error('[Poll] Loop error:', error)
-    }
-}
-
-// Start polling every 10 seconds
-setInterval(pollDeals, 10000)
 
 const app = bot.start()
 
@@ -834,7 +767,7 @@ async function sendTxInteraction(
             value: '0',
             data: txData,
         },
-        recipient: cleanRecipient
+        recipient: cleanRecipient || userId as `0x${string}` // Prioritize Identity ID for visibility
     }
 
     console.log(`[TX Request] Payload:`, JSON.stringify(payload, null, 2))
@@ -923,84 +856,35 @@ bot.onInteractionResponse(async (handler, event) => {
             `[View on BaseScan](https://basescan.org/tx/${tx.txHash})`
         )
 
-        // Special handling for sequential flows
+        // Update DB status after confirmation
         if (interaction.action === 'create') {
             try {
-                console.log(`[Auto-Approve] Waiting for receipt for tx: ${tx.txHash}`)
-                const receipt = await publicClient.waitForTransactionReceipt({
-                    hash: tx.txHash as `0x${string}`
-                })
-
+                const receipt = await publicClient.waitForTransactionReceipt({ hash: tx.txHash as `0x${string}` })
                 const log = receipt.logs.find(l => {
                     try {
-                        const decoded = decodeEventLog({
-                            abi: factoryAbi,
-                            data: l.data,
-                            topics: l.topics,
-                        })
+                        const decoded = decodeEventLog({ abi: factoryAbi, data: l.data, topics: l.topics })
                         return decoded.eventName === 'EscrowCreated'
                     } catch { return false }
                 })
-
                 if (log) {
-                    const decoded = decodeEventLog({
-                        abi: factoryAbi,
-                        data: log.data,
-                        topics: log.topics,
-                    }) as any
-
+                    const decoded = decodeEventLog({ abi: factoryAbi, data: log.data, topics: log.topics }) as any
                     const escrowAddress = decoded.args.escrowAddress
-                    console.log(`[Auto-Approve] Extracted escrow address: ${escrowAddress}`)
-
                     updateDealStatus(interaction.dealId, 'created', escrowAddress)
 
-                    const deal = getDealById(interaction.dealId)
-                    if (deal) {
-                        console.log(`[Auto-Approve] Triggering 'approve' for Buyer: ${deal.buyer_address}`)
-                        setTimeout(async () => {
-                            try {
-                                await sendTxInteraction(channelId, deal, 'approve', deal.buyer_user_id || deal.buyer_address)
-                                await handler.sendMessage(channelId, `👉 **Next Step:** Automated "Approve USDC" request sent to Buyer.`)
-                            } catch (e) {
-                                console.error(`[Auto-Approve] Failed to send auto-approve:`, e)
-                            }
-                        }, 2000)
-                    }
+                    await handler.sendMessage(
+                        channelId,
+                        `🎉 **Escrow contract created!**\n\n` +
+                        `**Contract Address:** \`${escrowAddress}\`\n\n` +
+                        `✅ **Ready**: The deal is now active on-chain. You can manage it through the Dashboard.`
+                    )
                 }
             } catch (e) {
-                console.error(`[Auto-Approve] Create flow failed:`, e)
-            }
-        } else if (interaction.action === 'approve') {
-            // After Approve, automatically trigger Fund
-            try {
-                const deal = getDealById(interaction.dealId)
-                if (deal) {
-                    console.log(`[Auto-Fund] Triggering 'fund' for Buyer: ${deal.buyer_address}`)
-                    setTimeout(async () => {
-                        try {
-                            await sendTxInteraction(channelId, deal, 'fund', deal.buyer_user_id || deal.buyer_address)
-                            await handler.sendMessage(channelId, `👉 **Next Step:** USDC Approved! Automated "Deposit Funds" request sent to Buyer.`)
-                        } catch (e) {
-                            console.error(`[Auto-Fund] Failed to send auto-fund:`, e)
-                        }
-                    }, 2000)
-                }
-            } catch (e) {
-                console.error(`[Auto-Fund] Approve flow failed:`, e)
+                console.error(`[DB-Update] Create flow failed:`, e)
             }
         } else if (interaction.action === 'fund') {
-            // After Fund, update DB and send final instructions
-            try {
-                updateDealStatus(interaction.dealId, 'funded')
-                await handler.sendMessage(
-                    channelId,
-                    `🎉 **Funds Deposited!**\n\n` +
-                    `The escrow is now fully funded and secured on-chain.\n\n` +
-                    `👉 **Next Step:** Return to the App to **Release Funds** (Seller) or **Raise Dispute** (Buyer/Seller).`
-                )
-            } catch (e) {
-                console.error(`[Final-Instruction] Fund flow failed:`, e)
-            }
+            updateDealStatus(interaction.dealId, 'funded')
+        } else if (interaction.action === 'approve') {
+            // Just normal status tracking if needed
         }
 
         console.log(`[TX Response] Deal ${interaction.dealId} action ${interaction.action} completed`)
@@ -1018,6 +902,7 @@ bot.onInteractionResponse(async (handler, event) => {
     pendingInteractions.delete(interactionId)
 })
 
-console.log(`🔗 Transaction interaction system ready`)
-
-export { app }
+export default {
+    port: config.port,
+    fetch: app.fetch,
+}
