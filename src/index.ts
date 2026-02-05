@@ -1,7 +1,10 @@
 // Towns Bot Native Integration
 // Last Updated: 2026-02-05
 import { Bot, makeTownsBot, getSmartAccountFromUserId } from '@towns-protocol/bot'
-import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog } from 'viem'
+import { encodeFunctionData, parseUnits, keccak256, toHex, decodeEventLog, isAddress } from 'viem'
+import { normalize } from 'viem/ens'
+import { mainnet } from 'viem/chains'
+import { createPublicClient, http } from 'viem'
 import commands from './commands'
 import { config } from './config'
 import { publicClient, factoryAbi, escrowAbi, getEscrowCount, getDealInfo, getStatusName, getDisputeWinner } from './blockchain'
@@ -23,28 +26,10 @@ const bot = await makeTownsBot(process.env.APP_PRIVATE_DATA!, process.env.JWT_SE
     },
 })
 
-const app = bot.start()
-
-// ===== CORS MIDDLEWARE (Move to top) =====
-app.use('/*', cors({
-    origin: '*',
-    allowMethods: ['POST', 'GET', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
-    exposeHeaders: ['Content-Length'],
-    maxAge: 600,
-    credentials: true,
-}))
-
-// ===== CONNECTIVITY TEST =====
-app.get('/api/ping', (c) => {
-    console.log('[API] Ping received')
-    return c.json({ status: 'ok', time: new Date().toISOString() })
-})
-
 // Support for old globalHandler if any stray code still uses it (safety)
 let globalHandler: any = null
 
-// ===== BOT COMMANDS =====
+// ===== BOT COMMANDS (Register handlers BEFORE bot.start) =====
 
 // Help command
 bot.onSlashCommand('help', async (handler, { channelId }) => {
@@ -82,10 +67,6 @@ bot.onSlashCommand('app', async (handler, { channelId }) => {
 })
 
 
-// Helper to verify/resolve address
-import { normalize } from 'viem/ens'
-import { mainnet } from 'viem/chains'
-import { createPublicClient, http, isAddress } from 'viem'
 
 const mainnetClient = createPublicClient({
     chain: mainnet,
@@ -557,6 +538,24 @@ async function pollDeals() {
 
 // Start polling every 10 seconds
 setInterval(pollDeals, 10000)
+
+const app = bot.start()
+
+// ===== CORS MIDDLEWARE =====
+app.use('/*', cors({
+    origin: '*',
+    allowMethods: ['POST', 'GET', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    exposeHeaders: ['Content-Length'],
+    maxAge: 600,
+    credentials: true,
+}))
+
+// ===== CONNECTIVITY TEST =====
+app.get('/api/ping', (c) => {
+    console.log('[API] Ping received')
+    return c.json({ status: 'ok', time: new Date().toISOString() })
+})
 
 // Bot started log
 console.log(`🤝 RoninOTC bot initialized on port ${config.port}`)
