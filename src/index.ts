@@ -646,7 +646,8 @@ async function sendTxInteraction(
     channelId: string,
     deal: any,
     action: TransactionAction,
-    userId?: string
+    userId?: string,
+    smartWalletAddress?: string
 ) {
     const interactionId = `tx-${deal.deal_id}-${action}-${Date.now()}`
     pendingInteractions.set(interactionId, { dealId: deal.deal_id, action, userId, channelId })
@@ -769,6 +770,7 @@ async function sendTxInteraction(
             to: getAddress(toAddress),
             value: '0',
             data: txData,
+            signerWallet: smartWalletAddress && isAddress(smartWalletAddress) ? getAddress(smartWalletAddress) : undefined
         },
         recipient: cleanRecipient || userId as `0x${string}` // Prioritize Identity ID for visibility
     }
@@ -808,7 +810,7 @@ app.post('/api/request-transaction', async (c) => {
     console.log(`[API POST] /api/request-transaction hit at ${new Date().toISOString()}`)
     try {
         const body = await c.req.json()
-        const { dealId, action, userId, channelId } = body
+        const { dealId, action, userId, channelId, smartWalletAddress } = body
         console.log(`[API POST] Params:`, JSON.stringify(body))
         console.log(`[API POST] Active Factory Address: ${config.factoryAddress}`)
 
@@ -819,8 +821,8 @@ app.post('/api/request-transaction', async (c) => {
         }
 
         try {
-            console.log(`[API POST] Triggering interaction for ${action}...`)
-            const result = await sendTxInteraction(channelId, deal, action, userId)
+            console.log(`[API POST] Triggering interaction for ${action} with smartWallet: ${smartWalletAddress}...`)
+            const result = await sendTxInteraction(channelId, deal, action, userId, smartWalletAddress)
             console.log(`[API POST] Interaction triggered successfully.`)
             return c.json({ success: true, result: 'OK' })
         } catch (error) {
