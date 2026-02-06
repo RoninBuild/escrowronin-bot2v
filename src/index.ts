@@ -659,7 +659,11 @@ async function sendTxInteraction(
     let toAddress: `0x${string}`
 
     const USDC_ADDRESS: `0x${string}` = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // Base USDC
-    const ESCROW_ADDRESS: `0x${string}` = (deal.escrow_address || config.factoryAddress) as `0x${string}`
+    const ESCROW_ADDRESS: `0x${string}` = deal.escrow_address as `0x${string}`
+
+    if (action !== 'create' && !ESCROW_ADDRESS) {
+        throw new Error(`Escrow address missing for action ${action}`)
+    }
 
     // Validate recipient - MUST be a hex address for the Bot SDK
     let cleanRecipient: `0x${string}` | undefined = undefined
