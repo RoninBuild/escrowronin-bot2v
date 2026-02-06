@@ -770,7 +770,6 @@ async function sendTxInteraction(
             to: getAddress(toAddress),
             value: '0',
             data: txData,
-            signerWallet: smartWalletAddress && isAddress(smartWalletAddress) ? getAddress(smartWalletAddress) : undefined
         },
         recipient: cleanRecipient || userId as `0x${string}` // Prioritize Identity ID for visibility
     }
