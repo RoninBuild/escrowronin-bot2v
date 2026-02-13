@@ -963,3 +963,12 @@ app.post('/webhook', async (c) => {
     return c.json({ ok: true })
 })
 
+
+
+const listeners: (() => void)[] = []
+export function cleanup() {
+    listeners.forEach(fn => fn())
+    listeners.length = 0
+}
+process.on('SIGTERM', cleanup)
+
