@@ -186,3 +186,13 @@ export class DealRepository {
     create(deal: Omit<Deal, 'id'>) { /* ... */ }
 }
 
+
+
+db.exec(`CREATE TABLE IF NOT EXISTS audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    deal_id INTEGER,
+    action TEXT,
+    actor TEXT,
+    timestamp INTEGER
+)`)
+
