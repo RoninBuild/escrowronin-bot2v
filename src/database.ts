@@ -196,3 +196,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS audit_log (
     timestamp INTEGER
 )`)
 
+
+
+import { createPool } from 'generic-pool'
+// Pool of 5 connections for concurrent reads
+
