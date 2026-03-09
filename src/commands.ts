@@ -185,3 +185,10 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`Refunded: ${tx}`)
 },
 
+
+
+'/settle': async (ctx) => {
+    // Both parties sign off — no arbiter needed
+    return ctx.reply('Both parties must /settle to release without arbiter')
+},
+
