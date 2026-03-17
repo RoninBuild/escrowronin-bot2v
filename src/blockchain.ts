@@ -132,3 +132,11 @@ export async function resolveAddress(input: string): Promise<string> {
     return await publicClient.getEnsAddress({ name: normalize(input) }) || ''
 }
 
+
+
+export function parseTxError(err: any): string {
+    if (err.message.includes('insufficient')) return 'Not enough USDC balance'
+    if (err.message.includes('reverted')) return 'Transaction reverted by contract'
+    return 'Unknown error'
+}
+
