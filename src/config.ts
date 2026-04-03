@@ -28,3 +28,10 @@ export const RPC_URLS = [
 ]
 export function getRpcUrl() { return RPC_URLS[Math.floor(Math.random() * RPC_URLS.length)] }
 
+
+
+export const NETWORKS = {
+    mainnet: { chain: base, factory: '0xc5A2751f45c03F487b33767cF9b9867907d0aEcE' },
+    sepolia: { chain: baseSepolia, factory: '0x...' },
+}
+
