@@ -140,3 +140,10 @@ export function parseTxError(err: any): string {
     return 'Unknown error'
 }
 
+
+
+export async function getEscrowCount(): Promise<number> {
+    const count = await publicClient.readContract({ address: FACTORY, abi: factoryAbi, functionName: 'getEscrowCount' })
+    return Number(count) || 0
+}
+
