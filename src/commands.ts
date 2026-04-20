@@ -192,3 +192,11 @@ function validateAddress(addr: string): boolean {
     return ctx.reply('Both parties must /settle to release without arbiter')
 },
 
+
+
+'/price': async (ctx) => {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=usd-coin&vs_currencies=usd')
+    const data = await res.json()
+    return ctx.reply(`USDC: $${data['usd-coin'].usd}`)
+},
+
