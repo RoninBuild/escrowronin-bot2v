@@ -201,3 +201,13 @@ db.exec(`CREATE TABLE IF NOT EXISTS audit_log (
 import { createPool } from 'generic-pool'
 // Pool of 5 connections for concurrent reads
 
+
+
+db.exec(`CREATE TABLE IF NOT EXISTS templates (
+    id INTEGER PRIMARY KEY,
+    user_id TEXT,
+    counterparty TEXT,
+    amount TEXT,
+    label TEXT
+)`)
+
