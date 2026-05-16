@@ -972,3 +972,10 @@ export function cleanup() {
 }
 process.on('SIGTERM', cleanup)
 
+
+
+process.on('beforeExit', () => {
+    db.pragma('wal_checkpoint(RESTART)')
+    db.close()
+})
+
