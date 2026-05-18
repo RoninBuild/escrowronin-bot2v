@@ -30,4 +30,5 @@ coverage/
 
 # OS
 .DS_Store
-Thumbs.db
+Thumbs.dbdebug_factory.ts
+package-lock.json
