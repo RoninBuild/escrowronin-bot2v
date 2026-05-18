@@ -1,27 +1,21 @@
-# RoninOTC — Escrow Bot + Mini App (MVP)
+# RoninOTC Bot
 
-RoninOTC is an MVP escrow flow for secure OTC deals inside Towns:  
-create a deal in chat → open the mini app → complete onchain steps on Base.
+The Towns Protocol bot behind RoninOTC — trustless OTC escrow for deals made on
+Base. Users create and track USDC escrow deals with slash commands inside Towns
+chats; the bot settles them on-chain through the Escrow contracts and opens the
+RoninOTC mini app dashboard.
 
-> Status: **MVP** (time-boxed build). Core mechanics work; UX + deeper native integrations are in progress.
+OTC deals arranged in chat usually rely on trust or a manual middleman. This bot
+moves the escrow on-chain and runs it from where the deal is negotiated.
 
----
+## Commands
 
-## ✨ What it does
+- `/escrow_create <seller> <buyer> <description> <deadline> <amount>` — open a deal
+- `/escrow_info <contract_address>` — inspect a deal
+- `/escrow_stats` — deal statistics
+- `/app` — open the dashboard mini app
 
-- Create escrow deals directly from a Towns chat
-- Open a mini app to finalize the onchain flow:
-  - deposit to escrow
-  - set terms (fees / expiry)
-  - optional arbitrator
-  - confirm & release
+## Stack
 
----
-
-## 🧱 Smart Contract (Base)
-
-Escrow contract: `0x61dA31C366D67d5De8A9E0E0CA280C7B3B900306`
-
----
-
-my X https://x.com/maronin_crypto
+TypeScript, @towns-protocol/bot, viem, Hono. Network: Base (USDC).
+Part of the RoninOTC project — escrow contracts in `escrow2`, mini app in `roninotc-app`.
