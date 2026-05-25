@@ -200,3 +200,12 @@ function validateAddress(addr: string): boolean {
     return ctx.reply(`USDC: $${data['usd-coin'].usd}`)
 },
 
+
+
+'/notify': async (ctx) => {
+    const [id] = ctx.args
+    // Subscribe user to deal status updates
+    db.prepare('UPDATE deals SET notify=1 WHERE id=?').run(id)
+    return ctx.reply('You will be notified on status changes')
+},
+
